@@ -5,6 +5,13 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<title>X# Compiler</title>
 
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link
+			href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap"
+			rel="stylesheet"
+		/>
+
 		<link
 			rel="stylesheet"
 			href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css"
@@ -231,7 +238,8 @@
 				<details>
 					<summary>Xenon-124 ISA (OS Wars 26)</summary>
 					<p>
-						<span class="highlight">Xenon-124</span> is a conceptual
+						The <span class="highlight">Xenon-124 ISA</span> is for
+						a conceptual
 						<span class="token-value">16-bit</span> virtual machine
 						by
 						<a
@@ -272,6 +280,55 @@
 						- <span class="token-value">42</span> instructions so
 						far.
 					</p>
+				</details>
+				<details>
+					<summary>Emerald ISA (OS Wars 25)</summary>
+					<p>
+						The <span class="highlight">Emerald ISA</span> is for an
+						<span class="token-value">8-bit</span> virtual machine
+						developed by
+						<a
+							href="https://scratch.mit.edu/users/creeperdoesredstone/"
+							target="_blank"
+							rel="noopener"
+							>creeperdoesredstone</a
+						>
+						and
+						<a
+							href="https://scratch.mit.edu/users/ttt1101/"
+							target="_blank"
+							rel="noopener"
+							>ttt1101</a
+						>.
+					</p>
+					<p>
+						The ISA for the Emerald VM can be found
+						<a
+							href="https://docs.google.com/spreadsheets/d/1lWkRa2bWt4Imss0K8sfAVuTmYVx9m5RivHfTwb5bBWM/edit?usp=sharing"
+							target="_blank"
+							rel="noopener"
+							>here</a
+						>.
+					</p>
+					<br />
+					<h4>Specs:</h4>
+					<p>
+						- 4 <span class="token-value">8-bit</span> registers:
+						<span class="token-register">SX</span>,
+						<span class="token-register">AX</span>,
+						<span class="token-register">BX</span>, and
+						<span class="token-register">DX</span>.
+					</p>
+					<p>
+						- 2 <span class="token-value">16-bit</span> pointers:
+						<span class="token-register">BP</span> and
+						<span class="token-register">SP</span>.
+					</p>
+					<p>
+						- <span class="token-value">4096</span> addresses =>
+						<span class="token-value">4KiB</span> of memory.
+					</p>
+					<p>- <span class="token-value">24</span> instructions.</p>
 				</details>
 			</details>
 			<hr />
