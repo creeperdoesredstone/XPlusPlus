@@ -58,11 +58,11 @@ const ttList = [
 	"LPR",
 	"RPR",
 ];
-const KEYWORDS = ["var"];
+const KEYWORDS = ["var", "const"];
 const DATATYPES = ["int", "float"];
 KEYWORDS.push(...DATATYPES);
 const DIGITS = "0123456789";
-const LETTERS = "abcdefghijklmnopqrstuvwxyz";
+const LETTERS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const VALID_IDEN = LETTERS + DIGITS + "_";
 
 const TT = Object.freeze(
@@ -221,6 +221,37 @@ class Compiler {
 
 		this.instructions.push(
 			`<span class='token-inst'>${inst}</span> ${joinedOperands}`
+		);
+		// this.instructions.push({ op: inst, operands: operands, });
+	}
+
+	formatHTML(inst) {
+		const flags = ["NV", "CR", "EQ", "LE", "GT", "NE", "GE", "AL"];
+		let joinedOperands =
+			typeof inst.operands === "string"
+				? [inst.operands]
+				: inst.operands
+						.map((operand) => {
+							operand = operand.toString();
+							if (flags.includes(operand))
+								return `<span class='token-flag'>${operand}</span>`;
+							if (operand.startsWith("#"))
+								return `<span class='token-value'>${operand}</span>`;
+							if (operand.startsWith("."))
+								return `<span class='label'>${operand}</span>`;
+							if (operand.endsWith("X"))
+								return `<span class='token-register'>${operand}</span>`;
+							if (
+								operand.startsWith("[") &&
+								operand.endsWith("X]")
+							)
+								return `[<span class='token-register'>${operand[1]}X</span>]`;
+							return `<span>${operand}</span>`;
+						})
+						.join(", ");
+
+		this.instructions.push(
+			`<span class='token-inst'>${inst.op}</span> ${joinedOperands}`
 		);
 	}
 
@@ -395,7 +426,7 @@ class Compiler {
 				case this.currentTok.type === TT.INT:
 				case this.currentTok.type === TT.FLOAT:
 					let value = Number(this.currentTok.value);
-					optStack.push(this.currentTok);
+					optStack.length = optStack.push(this.currentTok);
 
 					this.lastMode = this.isFloatMode;
 					this.isFloatMode = this.currentTok.type === TT.FLOAT;
@@ -405,10 +436,10 @@ class Compiler {
 					break;
 
 				case this.currentTok.type === TT.IDEN:
-					const varLocation = this.declaredVars.indexOf(
-						this.currentTok.value
-					);
-					if (varLocation === -1)
+					const varName = this.currentTok.value;
+					const varInfo = this.symbolTable[varName];
+
+					if (!varInfo) {
 						return res.fail(
 							new Error_Compilation(
 								this.currentTok.startPos,
@@ -416,17 +447,31 @@ class Compiler {
 								`Variable ${this.currentTok} is undefined.`
 							)
 						);
-					this.pushInstruction("LDIB", [
-						"#" + varLocation.toString(16).padStart(4, "0"),
-					]);
-					this.pushInstruction("PUSH", ["[BX]"]);
+					}
 
-					optStack.push(this.currentTok);
+					if (varInfo.isConst && varInfo.foldedValue !== undefined) {
+						const value = varInfo.foldedValue;
+						const propagatedTok = new Token(
+							Number.isInteger(value) ? TT.INT : TT.FLOAT,
+							value.toString(),
+							this.currentTok.startPos,
+							this.currentTok.endPos
+						);
+						optStack.length = optStack.push(propagatedTok);
+					} else {
+						const varLocation = this.declaredVars.indexOf(varName);
+						this.pushInstruction("LDIB", [
+							"#" + varLocation.toString(16).padStart(4, "0"),
+						]);
+						this.pushInstruction("PUSH", ["[BX]"]);
+
+						optStack.length = optStack.push(this.currentTok);
+					}
 					this.advance();
 					break;
 
 				case this.currentTok.type === TT.TOASSIGN:
-					optStack.push(this.currentTok);
+					optStack.length = optStack.push(this.currentTok);
 					this.advance();
 					break;
 
@@ -483,7 +528,7 @@ class Compiler {
 						if (!isUnary) removeNum(leftTok.value);
 						this.xenon_pushImmediate(foldedResult.value);
 
-						optStack.push(foldedResult);
+						optStack.length = optStack.push(foldedResult);
 						this.advance();
 						break;
 					}
@@ -505,7 +550,18 @@ class Compiler {
 							this.symbolTable[leftTok.value] = {
 								location: varLocation,
 								type: rightTok.type,
+								isConst: leftTok.isConst,
 							};
+							if (
+								leftTok.isConst &&
+								(rightTok.type === TT.INT ||
+									rightTok.type === TT.FLOAT)
+							) {
+								this.symbolTable[leftTok.value].foldedValue =
+									Number(rightTok.value);
+								this.advance();
+								break;
+							}
 						} else {
 							if (rightTok.type === TT.IDEN) {
 								if (
@@ -570,7 +626,7 @@ class Compiler {
 							this.regDest,
 						]);
 					}
-					optStack.push(rightTok);
+					optStack.length = optStack.push(rightTok);
 					this.pushInstruction("PUSH", [this.regDest]);
 					this.advance();
 					break;
@@ -698,7 +754,7 @@ class Compiler {
 				case this.currentTok.type === TT.INT:
 				case this.currentTok.type === TT.FLOAT:
 					let value = Number(this.currentTok.value);
-					optStack.push(this.currentTok);
+					optStack.length = optStack.push(this.currentTok);
 
 					this.lastMode = this.isFloatMode;
 					this.isFloatMode = this.currentTok.type === TT.FLOAT;
@@ -725,7 +781,7 @@ class Compiler {
 					]);
 					this.pushInstruction("PSH", ["[BX]"]);
 
-					optStack.push(this.currentTok);
+					optStack.length = optStack.push(this.currentTok);
 					this.advance();
 					break;
 
@@ -739,7 +795,7 @@ class Compiler {
 					break;
 
 				case this.currentTok.type === TT.TOASSIGN:
-					optStack.push(this.currentTok);
+					optStack.length = optStack.push(this.currentTok);
 					this.advance();
 					break;
 
@@ -796,7 +852,7 @@ class Compiler {
 						if (!isUnary) removeNum(leftTok.value);
 						this.emerald_pushImmediate(foldedResult.value);
 
-						optStack.push(foldedResult);
+						optStack.length = optStack.push(foldedResult);
 						this.advance();
 						break;
 					}
@@ -884,7 +940,7 @@ class Compiler {
 							this.regDest,
 						]);
 					}
-					optStack.push(rightTok);
+					optStack.length = optStack.push(rightTok);
 					this.pushInstruction("PSH", [this.regDest]);
 					this.advance();
 					break;

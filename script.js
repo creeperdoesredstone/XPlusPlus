@@ -245,6 +245,7 @@ class Parser {
 		this.currentTok = null;
 		this.advance();
 		this.declaredVars = new Set();
+		this.readOnlyVars = new Set();
 		this.nextIdenForAssignment = null;
 	}
 
@@ -291,6 +292,8 @@ class Parser {
 				case this.currentTok.type === TT.KEYW:
 					switch (this.currentTok.value) {
 						case "var":
+						case "const":
+							const isConst = this.currentTok.value === "const";
 							this.advance();
 							if (this.currentTok.type !== TT.IDEN)
 								return res.fail(
@@ -301,10 +304,23 @@ class Parser {
 									)
 								);
 
+							const varName = this.currentTok.value;
 							this.nextIdenForAssignment = this.currentTok;
 							this.nextIdenForAssignment.type = TT.TOASSIGN;
-							this.declaredVars.add(this.currentTok.value);
+							this.nextIdenForAssignment.isConst = isConst;
+
+							if (this.declaredVars.has(varName)) {
+								return res.fail(
+									new Error_InvalidSyntax(
+										this.currentTok.startPos,
+										`Variable '${varName}' already declared`
+									)
+								);
+							}
+							this.declaredVars.add(varName);
 							this.advance();
+
+							if (isConst) this.readOnlyVars.add(varName);
 
 							if (this.currentTok.type !== TT.COL)
 								return res.fail(
@@ -361,11 +377,42 @@ class Parser {
 					let o2Type =
 						o2 === undefined ? undefined : o2.type.description;
 
-					if (
-						o1Type === "ASGN" &&
-						this.nextIdenForAssignment !== null
-					) {
-						outputQueue.push(this.nextIdenForAssignment);
+					if (o1Type === "ASGN") {
+						let targetTok = null;
+						if (this.nextIdenForAssignment) {
+							targetTok = this.nextIdenForAssignment;
+						} else {
+							const lastOut =
+								outputQueue.length > 0
+									? outputQueue.pop()
+									: null;
+							if (lastOut && lastOut.type === TT.IDEN) {
+								targetTok = lastOut;
+							} else {
+								return res.fail(
+									new Error_InvalidSyntax(
+										o1.startPos,
+										o1.endPos,
+										"Invalid assignment target."
+									)
+								);
+							}
+						}
+
+						const targetName = targetTok.value || "";
+						if (this.readOnlyVars.has(targetName) && !this.nextIdenForAssignment) {
+							return res.fail(
+								new Error_InvalidSyntax(
+									o1.startPos,
+									o1.endPos,
+									`Cannot reassign to constant variable '${targetName}'.`
+								)
+							);
+						}
+
+						// Mark token as an assignment target and push to output queue.
+						targetTok.type = TT.TOASSIGN;
+						outputQueue.push(targetTok);
 						this.nextIdenForAssignment = null;
 					}
 

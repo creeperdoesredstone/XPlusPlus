@@ -24,8 +24,8 @@
 			<form>
 				<label for="language">Choose an assembly language:</label>
 				<select id="language" name="language">
-					<option value="XenonASM">XenonASM</option>
 					<option value="EmeraldASM">EmeraldASM</option>
+					<option value="XenonASM">XenonASM</option>
 				</select>
 				<br />
 				<label for="store-res">Choose where to store the result:</label>
@@ -181,18 +181,13 @@
 				</table>
 			</details>
 			<details>
-				<summary>Using Variables</summary>
+				<summary>Variables and Constants</summary>
 				<h4>Declaring variables</h4>
 				<p>
 					Variables are declared using the <code>var</code> keyword as
 					follows:
 				</p>
 				<div class="code-block">var identifier: dataType = expr;</div>
-
-				<p>
-					Currently, the variable's data type is inferred
-					automatically.
-				</p>
 				<br />
 				<h4>Changing values of variables</h4>
 				<p>
@@ -208,6 +203,18 @@
 					throw an error:
 				</p>
 				<div class="code-block">var a: int = 14;<br />a = 2.0;</div>
+				<br />
+				<h4>Using constants</h4>
+				<p>
+					Constants are declared using the <code>const</code> keyword
+					as follows:
+				</p>
+				<div class="code-block">const identifier: dataType = expr;</div>
+				<p>
+					Once declared, the value of a constant cannot be changed.
+					Doing the following would result in an error:
+				</p>
+				<div class="code-block">const a: int = 14;<br />a = 2;</div>
 			</details>
 			<details>
 				<summary>Parsing</summary>
@@ -339,4 +346,3 @@
 		<script src="index.js"></script>
 	</body>
 </html>
-
