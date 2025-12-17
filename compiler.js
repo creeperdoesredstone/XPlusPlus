@@ -897,10 +897,10 @@ class Compiler {
 					break;
 
 				case this.currentTok.type === TT.IDEN:
-					const varLocation = this.declaredVars.indexOf(
-						this.currentTok.value
-					);
-					if (varLocation === -1)
+					const varName = this.currentTok.value;
+					const varInfo = this.symbolTable[varName];
+
+					if (!varInfo) {
 						return res.fail(
 							new Error_Compilation(
 								this.currentTok.startPos,
@@ -908,13 +908,26 @@ class Compiler {
 								`Variable ${this.currentTok} is undefined.`
 							)
 						);
-					this.pushInstruction("LDI", [
-						"BX",
-						".var-" + this.currentTok.value,
-					]);
-					this.pushInstruction("PSH", ["[BX]"]);
+					}
 
-					optStack.length = optStack.push(this.currentTok);
+					if (varInfo.isConst && varInfo.foldedValue !== undefined) {
+						const value = varInfo.foldedValue;
+						const propagatedTok = new Token(
+							Number.isInteger(value) ? TT.INT : TT.FLOAT,
+							value.toString(),
+							this.currentTok.startPos,
+							this.currentTok.endPos
+						);
+						optStack.length = optStack.push(propagatedTok);
+					} else {
+						this.pushInstruction("LDI", [
+							"BX",
+							".var-" + this.currentTok.value,
+						]);
+						this.pushInstruction("PSH", ["[BX]"]);
+
+						optStack.length = optStack.push(this.currentTok);
+					}
 					this.advance();
 					break;
 
@@ -1007,7 +1020,18 @@ class Compiler {
 							this.symbolTable[leftTok.value] = {
 								location: varLocation,
 								type: rightTok.type,
+								isConst: leftTok.isConst,
 							};
+							if (
+								leftTok.isConst &&
+								(rightTok.type === TT.INT ||
+									rightTok.type === TT.FLOAT)
+							) {
+								this.symbolTable[leftTok.value].foldedValue =
+									Number(rightTok.value);
+								this.advance();
+								break;
+							}
 						} else {
 							if (rightTok.type === TT.IDEN) {
 								if (
@@ -1263,6 +1287,9 @@ class Compiler {
 
 	emerald_padVars() {
 		for (let i = 0; i < this.declaredVars.length; i++) {
+			if (this.symbolTable[this.declaredVars[i]].isConst) {
+				continue;
+			}
 			this.instructions.push(
 				`<span class='label'>.var-${this.declaredVars[i]}</span>`
 			);
