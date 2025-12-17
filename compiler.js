@@ -31,32 +31,56 @@ const operators = {
 		prec: 2,
 		assoc: "left",
 	},
-	ASGN: {
+	LT: {
 		prec: 1,
+		assoc: "left",
+	},
+	LE: {
+		prec: 1,
+		assoc: "left",
+	},
+	GT: {
+		prec: 1,
+		assoc: "left",
+	},
+	GE: {
+		prec: 1,
+		assoc: "left",
+	},
+	EQ: {
+		prec: 1,
+		assoc: "left",
+	},
+	NE: {
+		prec: 1,
+		assoc: "left",
+	},
+	ASGN: {
+		prec: 0,
 		assoc: "right",
 	},
 	ADDBY: {
-		prec: 1,
+		prec: 0,
 		assoc: "right",
 	},
 	SUBBY: {
-		prec: 1,
+		prec: 0,
 		assoc: "right",
 	},
 	MULBY: {
-		prec: 1,
+		prec: 0,
 		assoc: "right",
 	},
 	DIVBY: {
-		prec: 1,
+		prec: 0,
 		assoc: "right",
 	},
 	MODBY: {
-		prec: 1,
+		prec: 0,
 		assoc: "right",
 	},
 	POWBY: {
-		prec: 1,
+		prec: 0,
 		assoc: "right",
 	},
 };
@@ -85,6 +109,12 @@ const ttList = [
 	"MODBY",
 	"POWBY",
 	"ASGN",
+	"LT",
+	"LE",
+	"GT",
+	"GE",
+	"EQ",
+	"NE",
 	"LPR",
 	"RPR",
 ];
@@ -350,6 +380,24 @@ class Compiler {
 				break;
 			case "UADD":
 				resultValue = right;
+				break;
+			case "LT":
+				resultValue = -Number(left < right);
+				break;
+			case "LE":
+				resultValue = -Number(left <= right);
+				break;
+			case "GT":
+				resultValue = -Number(left > right);
+				break;
+			case "GE":
+				resultValue = -Number(left >= right);
+				break;
+			case "EQ":
+				resultValue = -Number(left == right);
+				break;
+			case "NE":
+				resultValue = -Number(left != right);
 				break;
 			default:
 				return res.success(null);
@@ -975,15 +1023,16 @@ class Compiler {
 						)
 					);
 					if (res.error) return res;
+					console.log(foldedResult);
 
 					const removeNum = (value) => {
 						let valToRemove = value;
 						if (!Number.isInteger(value))
-							valToRemove = this.fp16ToBitRepr(value);
+							valToRemove = this.fp8ToBitRepr(value);
 
 						const hexValue = valToRemove
 							.toString(16)
-							.padStart(3, "0");
+							.padStart(2, "0");
 						while (
 							this.instructions.length > 0 &&
 							this.instructions.at(-1).indexOf(hexValue) === -1
@@ -994,11 +1043,11 @@ class Compiler {
 					};
 
 					if (foldedResult) {
-						removeNum(rightTok.value);
-						if (!isUnary) removeNum(leftTok.value);
-						this.emerald_pushImmediate(foldedResult.value);
+						removeNum(rightTok.value % 26);
+						if (!isUnary) removeNum(leftTok.value % 26);
+						this.emerald_pushImmediate(foldedResult.value % 256);
 
-						optStack.length = optStack.push(foldedResult);
+						optStack.push(foldedResult);
 						this.advance();
 						break;
 					}
@@ -1160,7 +1209,7 @@ class Compiler {
 					}
 
 					if (isUnary) {
-						this.pushInstruction("LDI", ["AX", "#0000"]);
+						this.pushInstruction("LDI", ["AX", "#00"]);
 						this.pushInstruction("POP", ["DX"]);
 						this.pushInstruction(
 							this.currentTok.type.description.substr(1),

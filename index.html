@@ -163,7 +163,7 @@
 						<th>Associativity</th>
 					</tr>
 					<tr>
-						<td><code>-</code>, <code>+</code> (unary)</td>
+						<td><code>-</code>, <code>+</code></td>
 						<td>Unary</td>
 						<td>5</td>
 						<td>right</td>
@@ -187,9 +187,22 @@
 						<td>left</td>
 					</tr>
 					<tr>
-						<td><code>=</code></td>
+						<td>
+							<code><</code>, <code><=</code>, <code>==</code>,
+							<code><></code>, <code>></code>, <code>>=</code>
+						</td>
 						<td>Binary</td>
 						<td>1</td>
+						<td>left</td>
+					</tr>
+					<tr>
+						<td>
+							<code>=</code>, <code>+=</code>, <code>-=</code>,
+							<code>*=</code>, <code>/=</code>, <code>%=</code>,
+							<code>^=</code>
+						</td>
+						<td>Binary</td>
+						<td>0</td>
 						<td>right</td>
 					</tr>
 				</table>

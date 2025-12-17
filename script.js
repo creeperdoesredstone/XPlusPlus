@@ -31,6 +31,7 @@ class Lexer {
 				case this.currentChar === "\n":
 					this.advance();
 					break;
+
 				case this.currentChar === ";":
 					tokens.push(
 						new Token(
@@ -42,6 +43,7 @@ class Lexer {
 					);
 					this.advance();
 					break;
+
 				case this.currentChar === ":":
 					tokens.push(
 						new Token(
@@ -53,6 +55,7 @@ class Lexer {
 					);
 					this.advance();
 					break;
+
 				case this.currentChar === "+":
 					ttype = TT.ADD;
 					if (
@@ -68,15 +71,11 @@ class Lexer {
 					}
 
 					tokens.push(
-						new Token(
-							ttype,
-							undefined,
-							startPos,
-							this.pos.copy()
-						)
+						new Token(ttype, undefined, startPos, this.pos.copy())
 					);
 					this.advance();
 					break;
+
 				case this.currentChar === "-":
 					ttype = TT.SUB;
 					if (
@@ -92,79 +91,59 @@ class Lexer {
 					}
 
 					tokens.push(
-						new Token(
-							ttype,
-							undefined,
-							startPos,
-							this.pos.copy()
-						)
+						new Token(ttype, undefined, startPos, this.pos.copy())
 					);
 					this.advance();
 					break;
+
 				case this.currentChar === "*":
-					ttype = TT.MUL
+					ttype = TT.MUL;
 					if (this.nextChar === "=") {
 						ttype = TT.MULBY;
 						this.advance();
 					}
 					tokens.push(
-						new Token(
-							ttype,
-							undefined,
-							startPos,
-							this.pos.copy()
-						)
+						new Token(ttype, undefined, startPos, this.pos.copy())
 					);
 					this.advance();
 					break;
+
 				case this.currentChar === "/":
-					ttype = TT.DIV
+					ttype = TT.DIV;
 					if (this.nextChar === "=") {
 						ttype = TT.DIVBY;
 						this.advance();
 					}
 					tokens.push(
-						new Token(
-							ttype,
-							undefined,
-							startPos,
-							this.pos.copy()
-						)
+						new Token(ttype, undefined, startPos, this.pos.copy())
 					);
 					this.advance();
 					break;
+
 				case this.currentChar === "%":
-					ttype = TT.MOD
+					ttype = TT.MOD;
 					if (this.nextChar === "=") {
 						ttype = TT.MODBY;
 						this.advance();
 					}
 					tokens.push(
-						new Token(
-							ttype,
-							undefined,
-							startPos,
-							this.pos.copy()
-						)
+						new Token(ttype, undefined, startPos, this.pos.copy())
 					);
 					this.advance();
 					break;
+
 				case this.currentChar === "^":
-					ttype = TT.POW
+					ttype = TT.POW;
 					if (this.nextChar === "=") {
 						ttype = TT.POWBY;
 						this.advance();
 					}
 					tokens.push(
-						new Token(
-							ttype,
-							undefined,
-							startPos,
-							this.pos.copy()
-						)
+						new Token(ttype, undefined, startPos, this.pos.copy())
 					);
 					this.advance();
 					break;
+
 				case this.currentChar === "(":
 					tokens.push(
 						new Token(
@@ -176,6 +155,7 @@ class Lexer {
 					);
 					this.advance();
 					break;
+
 				case this.currentChar === ")":
 					tokens.push(
 						new Token(
@@ -187,17 +167,56 @@ class Lexer {
 					);
 					this.advance();
 					break;
+
 				case this.currentChar === "=":
+					ttype = TT.ASGN;
+					if (this.nextChar === "=") ttype = TT.EQ;
+
+					tokens.push(
+						new Token(ttype, undefined, startPos, this.pos.copy())
+					);
+					this.advance();
+					break;
+
+				case this.currentChar === "<":
+					ttype = TT.LT;
+					if (this.nextChar === "=") {
+						ttype = TT.LE;
+						this.advance();
+					} else if (this.nextChar === ">") {
+						ttype = TT.NE;
+						this.advance();
+					}
+
 					tokens.push(
 						new Token(
-							TT.ASGN,
+							ttype,
 							undefined,
-							this.pos.copy(),
+							startPos,
 							this.pos.copy()
 						)
 					);
 					this.advance();
 					break;
+				
+				case this.currentChar === ">":
+					ttype = TT.GT;
+					if (this.nextChar === "=") {
+						ttype = TT.GE;
+						this.advance();
+					}
+
+					tokens.push(
+						new Token(
+							ttype,
+							undefined,
+							startPos,
+							this.pos.copy()
+						)
+					);
+					this.advance();
+					break;
+
 				case DIGITS.indexOf(this.currentChar) > -1:
 					let dotCount = 0;
 					resStr = "";
@@ -225,6 +244,7 @@ class Lexer {
 						)
 					);
 					break;
+
 				case LETTERS.indexOf(this.currentChar) > -1:
 					resStr = "";
 					startPos = this.pos.copy();
@@ -247,6 +267,7 @@ class Lexer {
 						)
 					);
 					break;
+
 				default:
 					const error = new Error_UnknownChar(
 						this.pos.copy(),
