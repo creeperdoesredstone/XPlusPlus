@@ -170,7 +170,10 @@ class Lexer {
 
 				case this.currentChar === "=":
 					ttype = TT.ASGN;
-					if (this.nextChar === "=") ttype = TT.EQ;
+					if (this.nextChar === "=") {
+						ttype = TT.EQ;
+						this.advance();
+					}
 
 					tokens.push(
 						new Token(ttype, undefined, startPos, this.pos.copy())
@@ -189,16 +192,11 @@ class Lexer {
 					}
 
 					tokens.push(
-						new Token(
-							ttype,
-							undefined,
-							startPos,
-							this.pos.copy()
-						)
+						new Token(ttype, undefined, startPos, this.pos.copy())
 					);
 					this.advance();
 					break;
-				
+
 				case this.currentChar === ">":
 					ttype = TT.GT;
 					if (this.nextChar === "=") {
@@ -207,12 +205,7 @@ class Lexer {
 					}
 
 					tokens.push(
-						new Token(
-							ttype,
-							undefined,
-							startPos,
-							this.pos.copy()
-						)
+						new Token(ttype, undefined, startPos, this.pos.copy())
 					);
 					this.advance();
 					break;
