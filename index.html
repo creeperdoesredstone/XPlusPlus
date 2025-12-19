@@ -122,6 +122,12 @@
 					(<code>;</code>).
 				</p>
 				<br />
+				<h4>Comments</h4>
+				<p>
+					Comments are prefixed with 2 slashes (<code>//</code>). They
+					do not affect how the program compiles.
+				</p>
+				<br />
 				<h4>Literals</h4>
 				<p>X# currently supports these types of literals:</p>
 				<table>
@@ -209,37 +215,142 @@
 			</details>
 			<details>
 				<summary>Variables and Constants</summary>
-				<h4>Declaring variables</h4>
-				<p>
-					Variables are declared using the <code>var</code> keyword as
-					follows:
-				</p>
-				<div class="code-block">var identifier: dataType = expr;</div>
+				<details>
+					<summary>Variables</summary>
+					<p>
+						Variables are declared using the
+						<code>var</code> keyword as follows:
+					</p>
+					<div class="code-block">
+						var identifier: dataType = expr;
+					</div>
+					<p>
+						Once declared, the value of a variable can be changed
+						using the assignment operator:
+					</p>
+					<div class="code-block">identifier = expr;</div>
+					<p>
+						Variables can be assigned a value with the same data
+						type.
+					</p>
+					<p>
+						For example, if we have this code then the compiler
+						would throw an error:
+					</p>
+					<div class="code-block">var a: int = 14;<br />a = 2.0;</div>
+				</details>
 				<br />
-				<h4>Changing values of variables</h4>
-				<p>
-					Once declared, the value of a variable can be changed using
-					the assignment operator:
-				</p>
-				<div class="code-block">identifier = expr;</div>
-				<p>
-					Variables can be assigned a value with the same data type.
-				</p>
-				<p>
-					For example, if we have this code then the compiler would
-					throw an error:
-				</p>
-				<div class="code-block">var a: int = 14;<br />a = 2.0;</div>
+				<details>
+					<summary>Constants</summary>
+					<p>
+						Constants are declared using the
+						<code>const</code> keyword as follows:
+					</p>
+					<div class="code-block">
+						const identifier: dataType = expr;
+					</div>
+					<p>
+						Once declared, the value of a constant cannot be
+						changed.
+					</p>
+					<p>Doing the following would result in an error:</p>
+					<div class="code-block">const a: int = 14;<br />a = 2;</div>
+				</details>
+			</details>
+			<details>
+				<summary>Loops</summary>
+				<details>
+					<summary>Count-controlled (for) loops</summary>
+					<p>
+						A <code>for</code> loop is used to execute a group of
+						statements a known amount of times.
+					</p>
+					<div class="code-block">
+						for (init; condition; update) {<br />&nbsp;&nbsp;&nbsp;&nbsp;//
+						Body of the loop (code to be executed)<br />}
+					</div>
+					<br />
+					<h4>Components of a for loop</h4>
+					<ul>
+						<li>
+							<span class="highlight">Initialization</span>: Sets
+							a loop control variable to an initial value. It runs
+							only once at the very beginning. It can be either an
+							assignment expression or a variable declaration.
+						</li>
+
+						<li>
+							<span class="highlight">Condition</span>: Evaluated
+							before each iteration. If true, the body executes.
+							If false, the loop terminates.
+						</li>
+
+						<li>
+							<span class="highlight">Update</span>: Executes
+							after the body of the loop, typically incrementing
+							or decrementing the loop control variable.
+						</li>
+					</ul>
+					<br />
+					<h4>Semantics</h4>
+					<ol>
+						<li>
+							The <span class="highlight">initialization</span> is
+							executed once before the loop.
+						</li>
+						<li>
+							The <span class="highlight">condition</span> is
+							executed before every iteration.
+						</li>
+						<li>
+							If it is false, the loop terminates; else, the block
+							of statements is executed.
+						</li>
+						<li>
+							After the statements are executed, the iterator gets
+							updated.
+						</li>
+						<li>Control returns to the condition.</li>
+					</ol>
+					<br />
+					<h4>Equivalent <code>while</code> loop</h4>
+					<div class="code-block">
+						init;<br />while (condition) {<br />&nbsp;&nbsp;&nbsp;&nbsp;body<br />&nbsp;&nbsp;&nbsp;&nbsp;update;<br />}
+					</div>
+				</details>
 				<br />
-				<h4>Using constants</h4>
-				<p>
-					Constants are declared using the <code>const</code> keyword
-					as follows:
-				</p>
-				<div class="code-block">const identifier: dataType = expr;</div>
-				<p>Once declared, the value of a constant cannot be changed.</p>
-				<p>Doing the following would result in an error:</p>
-				<div class="code-block">const a: int = 14;<br />a = 2;</div>
+				<details>
+					<summary>Pre-condition (while) loops</summary>
+					<p>
+						A <code>while</code> loop is used to execute a group of
+						statements a known amount of times.
+					</p>
+					<div class="code-block">
+						while (condition) {<br />&nbsp;&nbsp;&nbsp;&nbsp;// Body
+						of the loop (code to be executed)<br />}
+					</div>
+					<br />
+					<h4>Semantics</h4>
+					<ol>
+						<li>
+							The <span class="highlight">condition</span> is
+							executed before every iteration.
+						</li>
+						<li>
+							If it is false, the loop terminates; else, the block
+							of statements is executed.
+						</li>
+						<li>
+							After the statements are executed, control returns
+							to the condition.
+						</li>
+					</ol>
+					<br />
+					<h4>Equivalent <code>for</code> loop</h4>
+					<div class="code-block">
+						for (; condition; ) {<br />&nbsp;&nbsp;&nbsp;&nbsp;body<br />}
+					</div>
+				</details>
 			</details>
 			<details>
 				<summary>Parsing</summary>
@@ -313,6 +424,7 @@
 						far.
 					</p>
 				</details>
+				<br />
 				<details>
 					<summary>Emerald ISA (OS Wars 25)</summary>
 					<p>
@@ -366,6 +478,7 @@
 			<hr />
 		</div>
 
+		<script src="operators.js"></script>
 		<script src="compiler.js"></script>
 		<script src="script.js"></script>
 		<script src="index.js"></script>

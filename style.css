@@ -165,6 +165,7 @@ option:hover {
 	border: none;
 	font-weight: 900;
 	opacity: 1;
+	scale: 1;
 	transition: all 150ms ease-out;
 }
 
@@ -182,6 +183,7 @@ option:hover {
 	color: white;
 	box-shadow: 0 0 30px #00ffff7b;
 	text-shadow: 0 0 3px white;
+	scale: 1.1;
 }
 
 #import-btn,
@@ -194,6 +196,7 @@ option:hover {
 	background-color: #00ffff;
 	cursor: pointer;
 	box-shadow: 0 0 30px #81ffff7b;
+	scale: 1.1;
 }
 
 #export-btn:disabled:hover {
@@ -201,6 +204,7 @@ option:hover {
 	color: black;
 	box-shadow: none;
 	cursor: default;
+	scale: 1;
 }
 
 .label {

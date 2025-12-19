@@ -1,124 +1,3 @@
-const operators = {
-	USUB: {
-		prec: 5,
-		assoc: "right",
-	},
-	UADD: {
-		prec: 5,
-		assoc: "right",
-	},
-	POW: {
-		prec: 4,
-		assoc: "right",
-	},
-	MUL: {
-		prec: 3,
-		assoc: "left",
-	},
-	DIV: {
-		prec: 3,
-		assoc: "left",
-	},
-	MOD: {
-		prec: 3,
-		assoc: "left",
-	},
-	ADD: {
-		prec: 2,
-		assoc: "left",
-	},
-	SUB: {
-		prec: 2,
-		assoc: "left",
-	},
-	LT: {
-		prec: 1,
-		assoc: "left",
-	},
-	LE: {
-		prec: 1,
-		assoc: "left",
-	},
-	GT: {
-		prec: 1,
-		assoc: "left",
-	},
-	GE: {
-		prec: 1,
-		assoc: "left",
-	},
-	EQ: {
-		prec: 1,
-		assoc: "left",
-	},
-	NE: {
-		prec: 1,
-		assoc: "left",
-	},
-	ASGN: {
-		prec: 0,
-		assoc: "right",
-	},
-	ADDBY: {
-		prec: 0,
-		assoc: "right",
-	},
-	SUBBY: {
-		prec: 0,
-		assoc: "right",
-	},
-	MULBY: {
-		prec: 0,
-		assoc: "right",
-	},
-	DIVBY: {
-		prec: 0,
-		assoc: "right",
-	},
-	MODBY: {
-		prec: 0,
-		assoc: "right",
-	},
-	POWBY: {
-		prec: 0,
-		assoc: "right",
-	},
-};
-const ttList = [
-	"EOF",
-	"END",
-	"SEMI",
-	"COL",
-	"IDEN",
-	"TOASSIGN",
-	"KEYW",
-	"INT",
-	"FLOAT",
-	"ADD",
-	"UADD",
-	"SUB",
-	"USUB",
-	"MUL",
-	"DIV",
-	"MOD",
-	"POW",
-	"ADDBY",
-	"SUBBY",
-	"MULBY",
-	"DIVBY",
-	"MODBY",
-	"POWBY",
-	"ASGN",
-	"LT",
-	"LE",
-	"GT",
-	"GE",
-	"EQ",
-	"NE",
-	"LPR",
-	"RPR",
-];
-
 const TT = Object.freeze(
 	ttList.reduce((obj, item) => {
 		obj[item] = Symbol(item);
@@ -126,7 +5,7 @@ const TT = Object.freeze(
 	}, {})
 );
 
-const KEYWORDS = ["var", "const"];
+const KEYWORDS = ["var", "const", "for", "while"];
 const DATATYPES = ["int", "float"];
 KEYWORDS.push(...DATATYPES);
 const DIGITS = "0123456789";
@@ -134,6 +13,7 @@ const LETTERS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const VALID_IDEN = LETTERS + DIGITS + "_";
 
 const varOperators = ["ADDBY", "SUBBY", "MULBY", "DIVBY", "MODBY", "POWBY"];
+const compOperators = ["LT", "LE", "GT", "GE", "EQ", "NE"];
 
 class Token {
 	constructor(type, value, startPos, endPos) {
@@ -146,7 +26,7 @@ class Token {
 	toString() {
 		let result =
 			this.value !== undefined
-				? `<span class='token-value'>${this.value}</span>`
+				? `<span class='token-type'>${this.type.description}</span>:<span class='token-value'>${this.value}</span>`
 				: `<span class='token-type'>${this.type.description}</span>`;
 		return result;
 	}
@@ -185,7 +65,7 @@ class BaseError {
 
 	toString() {
 		let resStr = `File <span class='token-value'>${
-			this.startPos.fn
+			this.startPos ? this.startPos.fn : "&lt;code&gt;"
 		}</span>, line <span class='token-value'>${
 			this.startPos.ln + 1
 		}</span> column <span class='token-value'>${
@@ -251,6 +131,7 @@ class Compiler {
 		this.lastMode = false;
 
 		this.symbolTable = {};
+		this.labelCount = 0;
 	}
 
 	advance() {
@@ -260,7 +141,7 @@ class Compiler {
 	}
 
 	pushInstruction(inst, operands) {
-		const flags = ["NV", "CR", "EQ", "LE", "GT", "NE", "GE", "AL"];
+		const flags = ["NV", "CR", "LT", "EQ", "LE", "GT", "NE", "GE", "AL"];
 		let joinedOperands =
 			typeof operands === "string"
 				? [operands]
@@ -291,7 +172,7 @@ class Compiler {
 	}
 
 	formatHTML(inst) {
-		const flags = ["NV", "CR", "EQ", "LE", "GT", "NE", "GE", "AL"];
+		const flags = ["NV", "CR", "LT", "EQ", "LE", "GT", "NE", "GE", "AL"];
 		let joinedOperands =
 			typeof inst.operands === "string"
 				? [inst.operands]
@@ -557,6 +438,27 @@ class Compiler {
 					this.advance();
 					break;
 
+				case this.currentTok.type === TT.LABEL:
+					this.pushInstruction("", ["." + this.currentTok.value]);
+					this.advance();
+					break;
+
+				case this.currentTok.type === TT.JMP_IF_FALSE:
+					this.pushInstruction("JUMP", [
+						"EQ",
+						"." + this.currentTok.value.value,
+					]);
+					this.advance();
+					break;
+
+				case this.currentTok.type === TT.JMP:
+					this.pushInstruction("JUMP", [
+						"AL",
+						"." + this.currentTok.value.value,
+					]);
+					this.advance();
+					break;
+
 				case this.currentTok.type.description in operators:
 					const isUnary =
 						this.currentTok.type.description.startsWith("U");
@@ -777,13 +679,36 @@ class Compiler {
 							["AX", "DX", this.regDest]
 						);
 					} else {
+						if (
+							compOperators.includes(
+								this.currentTok.type.description
+							)
+						) {
+							this.pushInstruction("COMP", ["DX", "AX"]);
+							this.pushInstruction("JUMP", [
+								this.currentTok.type.description,
+								`.bool-truthy-${this.labelCount}`,
+							]);
+							this.pushInstruction("LDIA", ["#0000"]);
+							this.pushInstruction("JUMP", [
+								"AL",
+								`.bool-rtn-${this.labelCount}`,
+							]);
+							this.pushInstruction("", [
+								`.bool-truthy-${this.labelCount}`,
+							]);
+							this.pushInstruction("LDIA", ["#ffff"]);
+							this.pushInstruction("", [
+								`.bool-rtn-${this.labelCount}`,
+							]);
+						} else {
 						this.pushInstruction("POP", ["AX"]); // right
 						this.pushInstruction("POP", ["DX"]); // left
 						this.pushInstruction(this.currentTok.type.description, [
 							"DX",
 							"AX",
 							this.regDest,
-						]);
+						]);}
 					}
 					optStack.length = optStack.push(rightTok);
 					this.pushInstruction("PUSH", [this.regDest]);
@@ -993,7 +918,28 @@ class Compiler {
 					this.advance();
 					break;
 
-				case this.currentTok.type.description in operators:
+				case this.currentTok.type === TT.LABEL:
+					this.pushInstruction("", ["." + this.currentTok.value]);
+					this.advance();
+					break;
+
+				case this.currentTok.type === TT.JMP_IF_FALSE:
+					this.pushInstruction("JMP", [
+						"EQ",
+						"." + this.currentTok.value.value,
+					]);
+					this.advance();
+					break;
+
+				case this.currentTok.type === TT.JMP:
+					this.pushInstruction("JMP", [
+						"AL",
+						"." + this.currentTok.value.value,
+					]);
+					this.advance();
+					break;
+
+					case this.currentTok.type.description in operators:
 					const isUnary =
 						this.currentTok.type.description.startsWith("U");
 					if (optStack.length < 2 - Number(isUnary)) {
@@ -1023,7 +969,6 @@ class Compiler {
 						)
 					);
 					if (res.error) return res;
-					console.log(foldedResult);
 
 					const removeNum = (value) => {
 						let valToRemove = value;
@@ -1218,11 +1163,34 @@ class Compiler {
 					} else {
 						this.pushInstruction("POP", ["AX"]); // right
 						this.pushInstruction("POP", ["DX"]); // left
-						this.pushInstruction(this.currentTok.type.description, [
-							"DX",
-							"AX",
-							this.regDest,
-						]);
+						if (
+							compOperators.includes(
+								this.currentTok.type.description
+							)
+						) {
+							this.pushInstruction("CMP", ["DX", "AX"]);
+							this.pushInstruction("JMP", [
+								this.currentTok.type.description,
+								`.bool-truthy-${this.labelCount}`,
+							]);
+							this.pushInstruction("LDI", ["AX", "#00"]);
+							this.pushInstruction("JMP", [
+								"AL",
+								`.bool-rtn-${this.labelCount}`,
+							]);
+							this.pushInstruction("", [
+								`.bool-truthy-${this.labelCount}`,
+							]);
+							this.pushInstruction("LDI", ["AX", "#ff"]);
+							this.pushInstruction("", [
+								`.bool-rtn-${this.labelCount}`,
+							]);
+						} else {
+							this.pushInstruction(
+								this.currentTok.type.description,
+								["DX", "AX", this.regDest]
+							);
+						}
 					}
 					optStack.length = optStack.push(rightTok);
 					this.pushInstruction("PSH", [this.regDest]);

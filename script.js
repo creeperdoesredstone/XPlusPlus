@@ -24,6 +24,7 @@ class Lexer {
 			lastTokType =
 				tokens.length > 0 ? tokens.at(-1).type.description : null;
 			startPos = this.pos.copy();
+
 			switch (true) {
 				case this.currentChar === " ":
 				case this.currentChar === "\t":
@@ -113,6 +114,13 @@ class Lexer {
 					if (this.nextChar === "=") {
 						ttype = TT.DIVBY;
 						this.advance();
+					} else if (this.nextChar === "/") {
+						while (
+							this.currentChar !== null &&
+							this.currentChar !== "\n"
+						)
+							this.advance();
+						break;
 					}
 					tokens.push(
 						new Token(ttype, undefined, startPos, this.pos.copy())
@@ -160,6 +168,30 @@ class Lexer {
 					tokens.push(
 						new Token(
 							TT.RPR,
+							undefined,
+							this.pos.copy(),
+							this.pos.copy()
+						)
+					);
+					this.advance();
+					break;
+
+				case this.currentChar === "{":
+					tokens.push(
+						new Token(
+							TT.LBR,
+							undefined,
+							this.pos.copy(),
+							this.pos.copy()
+						)
+					);
+					this.advance();
+					break;
+
+				case this.currentChar === "}":
+					tokens.push(
+						new Token(
+							TT.RBR,
 							undefined,
 							this.pos.copy(),
 							this.pos.copy()
@@ -328,221 +360,23 @@ class Parser {
 		const res = new Result();
 
 		while (this.currentTok.type !== TT.EOF) {
-			switch (true) {
-				case this.currentTok.type === TT.INT:
-				case this.currentTok.type === TT.FLOAT:
-				case this.currentTok.type === TT.IDEN:
-					outputQueue.push(this.currentTok);
-					this.advance();
-					break;
-
-				case this.currentTok.type === TT.KEYW:
-					switch (this.currentTok.value) {
-						case "var":
-						case "const":
-							const isConst = this.currentTok.value === "const";
-							this.advance();
-							if (this.currentTok.type !== TT.IDEN)
-								return res.fail(
-									new Error_InvalidSyntax(
-										this.currentTok.startPos,
-										this.currentTok.endPos,
-										"Expected identifier after 'var' keyword."
-									)
-								);
-
-							const varName = this.currentTok.value;
-							this.nextIdenForAssignment = this.currentTok;
-							this.nextIdenForAssignment.type = TT.TOASSIGN;
-							this.nextIdenForAssignment.isConst = isConst;
-
-							if (this.declaredVars.has(varName)) {
-								return res.fail(
-									new Error_InvalidSyntax(
-										this.currentTok.startPos,
-										`Variable '${varName}' already declared`
-									)
-								);
-							}
-							this.declaredVars.add(varName);
-							this.advance();
-
-							if (isConst) this.readOnlyVars.add(varName);
-
-							if (this.currentTok.type !== TT.COL)
-								return res.fail(
-									new Error_InvalidSyntax(
-										this.currentTok.startPos,
-										this.currentTok.endPos,
-										"Expected ':' after identifier in var declaration."
-									)
-								);
-							this.advance();
-
-							if (
-								this.currentTok.type !== TT.KEYW ||
-								DATATYPES.indexOf(this.currentTok.value) === -1
-							) {
-								console.log(this.currentTok);
-								return res.fail(
-									new Error_InvalidSyntax(
-										this.currentTok.startPos,
-										this.currentTok.endPos,
-										"Expected a data type after ':'."
-									)
-								);
-							}
-							this.nextIdenForAssignment.dataType =
-								this.currentTok.value;
-							this.advance();
-
-							if (this.currentTok.type !== TT.ASGN)
-								return res.fail(
-									new Error_InvalidSyntax(
-										this.currentTok.startPos,
-										this.currentTok.endPos,
-										"Expected '=' after data type in var declaration."
-									)
-								);
-							break;
-
-						default:
-							return res.fail(
-								new Error_InvalidSyntax(
-									this.currentTok.startPos,
-									this.currentTok.endPos,
-									`Unexpected keyword: ${this.currentTok.value}`
-								)
-							);
-					}
-					break;
-
-				case this.currentTok.type.description in operators:
-					const o1 = this.currentTok;
-					const o1Type = o1.type.description;
-					let o2 = operatorStack.at(-1);
-					let o2Type =
-						o2 === undefined ? undefined : o2.type.description;
-
-					if (o1Type === "ASGN") {
-						let targetTok = null;
-						if (this.nextIdenForAssignment) {
-							targetTok = this.nextIdenForAssignment;
-						} else {
-							const lastOut =
-								outputQueue.length > 0
-									? outputQueue.pop()
-									: null;
-							if (lastOut && lastOut.type === TT.IDEN) {
-								targetTok = lastOut;
-							} else {
-								return res.fail(
-									new Error_InvalidSyntax(
-										o1.startPos,
-										o1.endPos,
-										"Invalid assignment target."
-									)
-								);
-							}
-						}
-
-						const targetName = targetTok.value || "";
-						if (
-							this.readOnlyVars.has(targetName) &&
-							!this.nextIdenForAssignment
-						) {
-							return res.fail(
-								new Error_InvalidSyntax(
-									o1.startPos,
-									o1.endPos,
-									`Cannot reassign to constant variable '${targetName}'.`
-								)
-							);
-						}
-
-						// Mark token as an assignment target and push to output queue.
-						targetTok.type = TT.TOASSIGN;
-						outputQueue.push(targetTok);
-						this.nextIdenForAssignment = null;
-					}
-
-					while (
-						o2 !== undefined &&
-						o2Type !== "LPR" &&
-						(operators[o2Type].prec > operators[o1Type].prec ||
-							(operators[o2Type].prec ===
-								operators[o1Type].prec &&
-								operators[o1Type].assoc === "left"))
-					) {
-						outputQueue.push(operatorStack.pop());
-						if (operatorStack.length > 0) {
-							o2 = operatorStack.at(-1);
-							o2Type = o2.type.description;
-						} else o2 = undefined;
-					}
-					operatorStack.push(o1);
-					this.advance();
-					break;
-
-				case this.currentTok.type === TT.LPR:
-					operatorStack.push(this.currentTok);
-					this.advance();
-					break;
-
-				case this.currentTok.type === TT.RPR:
-					let topOfStack = operatorStack.at(-1);
-					while (topOfStack.type !== TT.LPR) {
-						if (operatorStack.length === 0)
-							return res.fail(
-								new Error_InvalidSyntax(
-									this.currentTok.startPos,
-									this.currentTok.endPos,
-									"Mismatched parenthesis: ')' without matching '('."
-								)
-							);
-
-						outputQueue.push(operatorStack.pop());
-						topOfStack = operatorStack.at(-1);
-					}
-
-					if (topOfStack.type !== TT.LPR)
-						return res.fail(
-							new Error_InvalidSyntax(
-								topOfStack.startPos,
-								topOfStack.endPos,
-								"Expected matching left parenthesis."
-							)
-						);
-					operatorStack.pop();
-					this.advance();
-					break;
-
-				case this.currentTok.type === TT.SEMI:
-					this.advance();
-					const finalizeResult = this.finalizeStatement(
-						outputQueue,
-						operatorStack,
-						res
-					);
-					if (finalizeResult.error) return finalizeResult;
-					outputQueue.push(
-						new Token(
-							TT.END,
-							undefined,
-							this.currentTok.startPos,
-							this.currentTok.endPos
-						)
-					);
-					break;
-
-				default:
-					return res.fail(
-						new Error_InvalidSyntax(
-							this.currentTok.startPos,
-							this.currentTok.endPos,
-							`Unrecognized token: ${this.currentTok}`
-						)
-					);
+			console.log(this.currentTok);
+			if (this.currentTok.type === TT.KEYW) {
+				switch (this.currentTok.value) {
+					case "for":
+						res.register(this.parseFor(outputQueue, res));
+						break;
+					case "while":
+						res.register(this.parseWhile(outputQueue, res));
+						break;
+					default:
+						this.parseSingleToken(outputQueue, operatorStack, res);
+						continue;
+				}
+				if (res.error) return res;
+				continue;
+			} else {
+				this.parseSingleToken(outputQueue, operatorStack, res);
 			}
 		}
 
@@ -553,6 +387,396 @@ class Parser {
 		);
 		if (finalizeResult.error) return finalizeResult;
 		return res.success(outputQueue);
+	}
+
+	parseSingleToken(outputQueue, operatorStack, res) {
+		switch (true) {
+			case this.currentTok.type === TT.INT:
+			case this.currentTok.type === TT.FLOAT:
+			case this.currentTok.type === TT.IDEN:
+				outputQueue.push(this.currentTok);
+				this.advance();
+				break;
+
+			case this.currentTok.type === TT.KEYW:
+				switch (this.currentTok.value) {
+					case "var":
+					case "const":
+						const isConst = this.currentTok.value === "const";
+						this.advance();
+						if (this.currentTok.type !== TT.IDEN)
+							return res.fail(
+								new Error_InvalidSyntax(
+									this.currentTok.startPos,
+									this.currentTok.endPos,
+									"Expected identifier after 'var' keyword."
+								)
+							);
+
+						const varName = this.currentTok.value;
+						this.nextIdenForAssignment = this.currentTok;
+						this.nextIdenForAssignment.type = TT.TOASSIGN;
+						this.nextIdenForAssignment.isConst = isConst;
+
+						if (this.declaredVars.has(varName)) {
+							return res.fail(
+								new Error_InvalidSyntax(
+									this.currentTok.startPos,
+									`Variable '${varName}' already declared`
+								)
+							);
+						}
+						this.declaredVars.add(varName);
+						this.advance();
+
+						if (isConst) this.readOnlyVars.add(varName);
+
+						if (this.currentTok.type !== TT.COL)
+							return res.fail(
+								new Error_InvalidSyntax(
+									this.currentTok.startPos,
+									this.currentTok.endPos,
+									"Expected ':' after identifier in var declaration."
+								)
+							);
+						this.advance();
+
+						if (
+							this.currentTok.type !== TT.KEYW ||
+							DATATYPES.indexOf(this.currentTok.value) === -1
+						) {
+							return res.fail(
+								new Error_InvalidSyntax(
+									this.currentTok.startPos,
+									this.currentTok.endPos,
+									"Expected a data type after ':'."
+								)
+							);
+						}
+						this.nextIdenForAssignment.dataType =
+							this.currentTok.value;
+						this.advance();
+
+						if (this.currentTok.type !== TT.ASGN)
+							return res.fail(
+								new Error_InvalidSyntax(
+									this.currentTok.startPos,
+									this.currentTok.endPos,
+									"Expected '=' after data type in var declaration."
+								)
+							);
+						break;
+
+					default:
+						return res.fail(
+							new Error_InvalidSyntax(
+								this.currentTok.startPos,
+								this.currentTok.endPos,
+								`Unexpected keyword: ${this.currentTok.value}`
+							)
+						);
+				}
+				break;
+
+			case this.currentTok.type.description in operators:
+				const o1 = this.currentTok;
+				const o1Type = o1.type.description;
+				let o2 = operatorStack.at(-1);
+				let o2Type = o2 === undefined ? undefined : o2.type.description;
+
+				if (o1Type === "ASGN") {
+					let targetTok = null;
+					if (this.nextIdenForAssignment) {
+						targetTok = this.nextIdenForAssignment;
+					} else {
+						const lastOut =
+							outputQueue.length > 0 ? outputQueue.pop() : null;
+						if (lastOut && lastOut.type === TT.IDEN) {
+							targetTok = lastOut;
+						} else {
+							return res.fail(
+								new Error_InvalidSyntax(
+									o1.startPos,
+									o1.endPos,
+									"Invalid assignment target."
+								)
+							);
+						}
+					}
+
+					const targetName = targetTok.value || "";
+					if (
+						this.readOnlyVars.has(targetName) &&
+						!this.nextIdenForAssignment
+					) {
+						return res.fail(
+							new Error_InvalidSyntax(
+								o1.startPos,
+								o1.endPos,
+								`Cannot reassign to constant variable '${targetName}'.`
+							)
+						);
+					}
+
+					// Mark token as an assignment target and push to output queue.
+					targetTok.type = TT.TOASSIGN;
+					outputQueue.push(targetTok);
+					this.nextIdenForAssignment = null;
+				}
+
+				while (
+					o2 !== undefined &&
+					o2Type !== "LPR" &&
+					(operators[o2Type].prec > operators[o1Type].prec ||
+						(operators[o2Type].prec === operators[o1Type].prec &&
+							operators[o1Type].assoc === "left"))
+				) {
+					outputQueue.push(operatorStack.pop());
+					if (operatorStack.length > 0) {
+						o2 = operatorStack.at(-1);
+						o2Type = o2.type.description;
+					} else o2 = undefined;
+				}
+				operatorStack.push(o1);
+				this.advance();
+				break;
+
+			case this.currentTok.type === TT.LPR:
+				operatorStack.push(this.currentTok);
+				this.advance();
+				break;
+
+			case this.currentTok.type === TT.RPR:
+				let topOfStack = operatorStack.at(-1);
+				while (topOfStack.type !== TT.LPR) {
+					if (operatorStack.length === 0)
+						return res.fail(
+							new Error_InvalidSyntax(
+								this.currentTok.startPos,
+								this.currentTok.endPos,
+								"Mismatched parenthesis: ')' without matching '('."
+							)
+						);
+
+					outputQueue.push(operatorStack.pop());
+					topOfStack = operatorStack.at(-1);
+				}
+
+				if (topOfStack.type !== TT.LPR)
+					return res.fail(
+						new Error_InvalidSyntax(
+							topOfStack.startPos,
+							topOfStack.endPos,
+							"Expected matching left parenthesis."
+						)
+					);
+				operatorStack.pop();
+				this.advance();
+				break;
+
+			case this.currentTok.type === TT.SEMI:
+				this.advance();
+				const finalizeResult = this.finalizeStatement(
+					outputQueue,
+					operatorStack,
+					res
+				);
+				if (finalizeResult.error) return finalizeResult;
+				outputQueue.push(
+					new Token(
+						TT.END,
+						undefined,
+						this.currentTok.startPos,
+						this.currentTok.endPos
+					)
+				);
+				break;
+
+			default:
+				return res.fail(
+					new Error_InvalidSyntax(
+						this.currentTok.startPos,
+						this.currentTok.endPos,
+						`Unrecognized token: ${this.currentTok}`
+					)
+				);
+		}
+
+		return res.success(null);
+	}
+
+	parseExpressionUntil(endType, outputQueue, res) {
+		const operatorStack = [];
+
+		while (this.currentTok.type !== endType) {
+			if (this.currentTok.type === TT.EOF)
+				return res.fail(
+					new Error_InvalidSyntax(
+						this.currentTok.startPos,
+						this.currentTok.endPos,
+						"Unexpected EOF"
+					)
+				);
+
+			const r = this.parseSingleToken(outputQueue, operatorStack, res);
+			if (r.error) return r;
+		}
+
+		this.advance(); // consume end token
+		return this.finalizeStatement(outputQueue, operatorStack, res);
+	}
+
+	parseStatement(outputQueue, res) {
+		const operatorStack = [];
+
+		while (
+			this.currentTok.type !== TT.SEMI &&
+			this.currentTok.type !== TT.RBR
+		) {
+			const r = this.parseSingleToken(outputQueue, operatorStack, res);
+			if (r.error) return r;
+		}
+
+		if (this.currentTok.type === TT.SEMI) this.advance();
+
+		const r = this.finalizeStatement(outputQueue, operatorStack, res);
+		if (r.error) return r;
+
+		outputQueue.push(new Token(TT.END));
+		return res.success(null);
+	}
+
+	parseFor(outputQueue, res) {
+		this.advance(); // 'for'
+
+		if (this.currentTok.type !== TT.LPR)
+			return res.fail(
+				new Error_InvalidSyntax(
+					this.currentTok.startPos,
+					this.currentTok.endPos,
+					"Expected '(' after for"
+				)
+			);
+		this.advance();
+
+		this.parseExpressionUntil(TT.SEMI, outputQueue, res);
+		outputQueue.push(new Token(TT.END));
+
+		const startLabel = newLabel(
+			this.currentTok.endPos,
+			this.currentTok.endPos
+		);
+		const endLabel = newLabel(
+			this.currentTok.endPos,
+			this.currentTok.endPos
+		);
+
+		outputQueue.push(startLabel);
+		this.parseExpressionUntil(TT.SEMI, outputQueue, res);
+		outputQueue.push(
+			new Token(
+				TT.JMP_IF_FALSE,
+				endLabel,
+				this.currentTok.endPos,
+				this.currentTok.endPos
+			)
+		);
+
+		const updateQueue = [];
+		this.parseExpressionUntil(TT.RPR, updateQueue, res);
+
+		if (this.currentTok.type !== TT.LBR)
+			return res.fail(
+				new Error_InvalidSyntax(
+					this.currentTok.startPos,
+					this.currentTok.endPos,
+					"Expected '{'"
+				)
+			);
+		this.advance();
+
+		while (this.currentTok.type !== TT.RBR) {
+			const r = this.parseStatement(outputQueue, res);
+			if (r.error) return r;
+		}
+
+		this.advance();
+
+		outputQueue.push(...updateQueue);
+		outputQueue.push(
+			new Token(
+				TT.JMP,
+				startLabel,
+				this.currentTok.endPos,
+				this.currentTok.endPos
+			)
+		);
+		outputQueue.push(endLabel);
+
+		return res.success(null);
+	}
+
+	parseWhile(outputQueue, res) {
+		this.advance();
+
+		if (this.currentTok.type !== TT.LPR)
+			return res.fail(
+				new Error_InvalidSyntax(
+					this.currentTok.startPos,
+					this.currentTok.endPos,
+					"Expected '(' after while"
+				)
+			);
+		this.advance();
+
+		const startLabel = newLabel(
+			this.currentTok.endPos,
+			this.currentTok.endPos
+		);
+		const endLabel = newLabel(
+			this.currentTok.endPos,
+			this.currentTok.endPos
+		);
+		outputQueue.push(startLabel);
+
+		this.parseExpressionUntil(TT.RPR, outputQueue, res);
+		outputQueue.push(
+			new Token(
+				TT.JMP_IF_FALSE,
+				endLabel,
+				this.currentTok.endPos,
+				this.currentTok.endPos
+			)
+		);
+
+		if (this.currentTok.type !== TT.LBR)
+			return res.fail(
+				new Error_InvalidSyntax(
+					this.currentTok.startPos,
+					this.currentTok.endPos,
+					"Expected '{'"
+				)
+			);
+		this.advance();
+
+		while (this.currentTok.type !== TT.RBR) {
+			const r = this.parseStatement(outputQueue, res);
+			if (r.error) return r;
+		}
+
+		this.advance();
+
+		outputQueue.push(
+			new Token(
+				TT.JMP,
+				startLabel,
+				this.currentTok.endPos,
+				this.currentTok.endPos
+			)
+		);
+		outputQueue.push(endLabel);
+
+		return res.success(null);
 	}
 }
 
@@ -567,6 +791,7 @@ const outLabel = "<span class='label'>Assembly Output</span>";
 const storeRes = document.getElementById("store-res");
 
 const run = (fn, ftxt) => {
+	labelCounter = 0;
 	rpnOutput.innerHTML = rpnLabel;
 	output.innerHTML = outLabel;
 	const asmLang = document.getElementById("language").value;
