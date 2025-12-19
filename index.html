@@ -317,6 +317,39 @@
 					<div class="code-block">
 						init;<br />while (condition) {<br />&nbsp;&nbsp;&nbsp;&nbsp;body<br />&nbsp;&nbsp;&nbsp;&nbsp;update;<br />}
 					</div>
+					<br />
+					<h4>Scope rules</h4>
+					<ul>
+						<li>
+							The for loop does not introduce a new variable
+							scope.
+						</li>
+						<li>
+							Variables declared or assigned in
+							<code>init</code> are visible inside the loop.
+						</li>
+						<li>
+							Variables modified in the loop persist after the
+							loop ends.
+						</li>
+					</ul>
+					<br />
+					<h4>Bytecode Model</h4>
+					<p>
+						Internally, the <code>for</code> loop is compiled into
+						jump-based control flow:
+					</p>
+					<div class="code-block">
+						<span class="token-inst">evaluate</span> init;<br />
+						<span class="token-inst">LABEL</span> start;<br />
+						<span class="token-inst">evaluate</span>
+						condition;<br />
+						<span class="token-inst">JUMP_IF_FALSE</span> end;<br />
+						<span class="token-inst">execute</span> body;<br />
+						<span class="token-inst">evaluate</span> update;<br />
+						<span class="token-inst">JUMP</span> start;<br />
+						<span class="token-inst">LABEL</span> end;
+					</div>
 				</details>
 				<br />
 				<details>
@@ -349,6 +382,21 @@
 					<h4>Equivalent <code>for</code> loop</h4>
 					<div class="code-block">
 						for (; condition; ) {<br />&nbsp;&nbsp;&nbsp;&nbsp;body<br />}
+					</div>
+					<br />
+					<h4>Bytecode Model</h4>
+					<p>
+						Internally, the <code>while</code> loop is compiled into
+						jump-based control flow:
+					</p>
+					<div class="code-block">
+						<span class="token-inst">LABEL</span> start;<br />
+						<span class="token-inst">evaluate</span>
+						condition;<br />
+						<span class="token-inst">JUMP_IF_FALSE</span> end;<br />
+						<span class="token-inst">execute</span> body;<br />
+						<span class="token-inst">JUMP</span> start;<br />
+						<span class="token-inst">LABEL</span> end;
 					</div>
 				</details>
 			</details>
