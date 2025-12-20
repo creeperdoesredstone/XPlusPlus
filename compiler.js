@@ -420,6 +420,50 @@ class Compiler {
 					this.advance();
 					break;
 
+				case this.currentTok.type === TT.PUSH:
+					this.pushInstruction("PSHI", [
+						"#" +
+							this.currentTok.value.toString(16).padStart(3, "0"),
+					]);
+					this.advance();
+					break;
+
+				case this.currentTok.type === TT.RET:
+					this.pushInstruction("RETN", ["AL"]);
+					this.advance();
+					break;
+
+				case this.currentTok.type === TT.POP:
+					// Declare new variable
+					this.declaredVars.push(this.currentTok.value);
+					const varLocation = this.declaredVars.length - 1;
+					this.symbolTable[this.currentTok.value] = {
+						location: varLocation,
+						isConst: false,
+					};
+
+					this.pushInstruction("LDIB", [
+						"BX",
+						"#" + varLocation.toString(16).padStart(4, "0"),
+					]);
+					this.pushInstruction("POP", [
+						this.regDest === "AX" ? "DX" : "AX",
+					]);
+					this.pushInstruction("STR", [
+						this.regDest === "AX" ? "DX" : "AX",
+						"[BX]",
+					]);
+					this.advance();
+					break;
+
+				case this.currentTok.type === TT.CALL:
+					this.pushInstruction("LDIB", [
+						"." + this.currentTok.value.value,
+					]);
+					this.pushInstruction("CALL", ["AL", "BX"]);
+					this.advance();
+					break;
+
 				case this.currentTok.type.description in operators:
 					const isUnary =
 						this.currentTok.type.description.startsWith("U");
@@ -912,9 +956,9 @@ class Compiler {
 					break;
 
 				case this.currentTok.type === TT.CALL:
-					this.pushInstruction("CALL", [
+					this.pushInstruction("CAL", [
 						"AL",
-						this.currentTok.value.value,
+						"." + this.currentTok.value.value,
 					]);
 					this.advance();
 					break;
@@ -968,8 +1012,8 @@ class Compiler {
 					};
 
 					if (foldedResult) {
-						removeNum(rightTok.value % 26);
-						if (!isUnary) removeNum(leftTok.value % 26);
+						removeNum(rightTok.value % 256);
+						if (!isUnary) removeNum(leftTok.value % 256);
 						this.emerald_pushImmediate(foldedResult.value % 256);
 
 						optStack.push(foldedResult);
