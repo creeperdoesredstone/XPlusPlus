@@ -144,3 +144,5 @@ const VALID_IDEN = LETTERS + DIGITS + "_";
 
 const varOperators = ["ADDBY", "SUBBY", "MULBY", "DIVBY", "MODBY", "POWBY"];
 const compOperators = ["LT", "LE", "GT", "GE", "EQ", "NE"];
+
+const virtualFileSystem = {};

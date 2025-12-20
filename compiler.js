@@ -86,6 +86,12 @@ class Error_Compilation extends BaseError {
 	}
 }
 
+class Error_Processing extends BaseError {
+	constructor(startPos, endPos, details) {
+		super(startPos, endPos, "Processing Error", details);
+	}
+}
+
 class Result {
 	constructor() {
 		this.value = undefined;
@@ -480,7 +486,7 @@ class Compiler {
 						optStack.pop();
 
 					this.pushInstruction("CALL", ["AL", "BX"]);
-					
+
 					optStack.push(
 						new Token(
 							TT.INT, // Or a generic type if your language supports type inference
@@ -489,7 +495,7 @@ class Compiler {
 							this.currentTok.endPos
 						)
 					);
-					
+
 					this.advance();
 					break;
 
@@ -561,6 +567,20 @@ class Compiler {
 									leftTok.startPos,
 									leftTok.endPos,
 									`Variable ${leftTok} is undefined.`
+								)
+							);
+
+						if (
+							leftTok.dataType.toUpperCase() !==
+							rightTok.type.description
+						)
+							return res.fail(
+								new Error_Compilation(
+									rightTok.startPos,
+									rightTok.endPos,
+									`Cannot assign '${
+										rightTok.type.description
+									}' to '${leftTok.dataType.toUpperCase()}'.`
 								)
 							);
 
@@ -1033,7 +1053,6 @@ class Compiler {
 						);
 					}
 
-					console.log(...optStack);
 					const rightTok = optStack.pop();
 					let leftTok;
 					if (!isUnary) leftTok = optStack.pop();
@@ -1088,12 +1107,27 @@ class Compiler {
 								)
 							);
 
+						if (
+							leftTok.dataType.toUpperCase() !==
+							rightTok.type.description
+						)
+							return res.fail(
+								new Error_Compilation(
+									rightTok.startPos,
+									rightTok.endPos,
+									`Cannot assign '${
+										rightTok.type.description
+									}' to '${leftTok.dataType.toUpperCase()}'.`
+								)
+							);
+
 						if (!(leftTok.value in this.symbolTable)) {
 							this.symbolTable[leftTok.value] = {
 								location: varLocation,
 								type: rightTok.type,
 								isConst: leftTok.isConst,
 							};
+
 							if (
 								leftTok.isConst &&
 								(rightTok.type === TT.INT ||

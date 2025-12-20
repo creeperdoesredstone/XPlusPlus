@@ -447,6 +447,7 @@ class Parser {
 				break;
 
 			case this.currentTok.type === TT.KEYW:
+				const kw = this.currentTok.value;
 				switch (this.currentTok.value) {
 					case "var":
 					case "const":
@@ -549,7 +550,7 @@ class Parser {
 							)
 						);
 				}
-				break;
+				if (kw !== "var" && kw !== "const") break;
 
 			case this.currentTok.type.description in operators:
 				const o1 = this.currentTok;
@@ -948,7 +949,7 @@ class Parser {
 		this.advance();
 
 		if (this.isReturning) return res.success(null);
-		
+
 		outputQueue.push(new Token(TT.PUSH, 0, body.endPos, body.endPos));
 		outputQueue.push(
 			new Token(TT.RET, undefined, body.endPos, body.endPos)
@@ -969,6 +970,24 @@ const outLabel = "<span class='label'>Assembly Output</span>";
 
 const storeRes = document.getElementById("store-res");
 
+const basePos = new Position(0, 0, 0, "&ltcode&gt", "");
+
+function flattenSource(source, vfs, visited = new Set()) {
+	// Regex matches: include <filename> // optional comment
+	const regex = /^\s*include\s+<([^>]+)>(?:\s*\/\/.*)?$/gm;
+
+	return source.replace(regex, (match, fileName) => {
+		if (visited.has(fileName))
+			throw new Error(`Circular include: ${fileName}`);
+
+		const content = vfs[fileName];
+		if (!content) throw new Error(`Module <${fileName}> not found.`);
+
+		visited.add(fileName);
+		return flattenSource(content, vfs, visited);
+	});
+}
+
 const run = (fn, ftxt) => {
 	labelCounter = 0;
 	rpnOutput.innerHTML = rpnLabel;
@@ -977,27 +996,41 @@ const run = (fn, ftxt) => {
 
 	if (!ftxt.trim()) return new Result().success([]);
 
-	const lexer = new Lexer(fn, ftxt);
-	const lexRes = lexer.lex();
-	if (lexRes.error) return lexRes;
+	try {
+		const processedCode = flattenSource(ftxt, virtualFileSystem);
 
-	const parser = new Parser(lexRes.value);
-	const rpn = parser.parse();
+		const lexer = new Lexer(fn, processedCode);
+		const lexRes = lexer.lex();
+		if (lexRes.error) return lexRes;
 
-	if (!rpn.error)
-		rpnOutput.innerHTML = `${rpnLabel}<br>${rpn.value.join(", ")}`;
-	else {
-		rpnOutput.innerHTML = rpnLabel;
-		return rpn;
+		const parser = new Parser(lexRes.value);
+		const rpn = parser.parse();
+
+		if (!rpn.error)
+			rpnOutput.innerHTML = `${rpnLabel}<br>${rpn.value.join(", ")}`;
+		else {
+			rpnOutput.innerHTML = rpnLabel;
+			return rpn;
+		}
+
+		const compiler = new Compiler(rpn.value, parser.declaredVars, asmLang);
+		const asm = compiler.compile();
+
+		return asm;
+	} catch (e) {
+		basePos.fn = fn;
+		return new Result().fail(
+			new Error_Processing(basePos, basePos, e.message)
+		);
 	}
-
-	const compiler = new Compiler(rpn.value, parser.declaredVars, asmLang);
-	const asm = compiler.compile();
-	return asm;
 };
 
 const compileCode = () => {
-	const result = run("&lt;code&gt;", code.innerText.trimEnd());
+	let mainCode = code.innerText.trimEnd();
+	const result = run(
+		document.getElementById("fn").value || "&lt;code&gt;",
+		mainCode
+	);
 
 	if (result.error) {
 		output.innerHTML = result.error.toString();

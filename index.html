@@ -61,6 +61,18 @@
 
 			<hr />
 
+			<h2>Files</h2>
+			<input
+				type="file"
+				id="file-upload"
+				title="Add File"
+				multiple
+				accept=".xs,.xasm,.easm"
+			/>
+			<ul id="file-list"></ul>
+
+			<hr />
+
 			<h2>X# Compiler</h2>
 			<div class="buttons">
 				<button type="button" id="import-btn" title="Import">
@@ -340,15 +352,15 @@
 						jump-based control flow:
 					</p>
 					<div class="code-block">
-						<span class="token-inst">evaluate</span> init;<br />
-						<span class="token-inst">LABEL</span> start;<br />
+						<span class="token-inst">evaluate</span> init<br />
+						<span class="token-inst">LABEL</span> start<br />
 						<span class="token-inst">evaluate</span>
-						condition;<br />
-						<span class="token-inst">JUMP_IF_FALSE</span> end;<br />
-						<span class="token-inst">execute</span> body;<br />
-						<span class="token-inst">evaluate</span> update;<br />
-						<span class="token-inst">JUMP</span> start;<br />
-						<span class="token-inst">LABEL</span> end;
+						condition<br />
+						<span class="token-inst">JUMP_IF_FALSE</span> end<br />
+						<span class="token-inst">execute</span> body<br />
+						<span class="token-inst">evaluate</span> update<br />
+						<span class="token-inst">JUMP</span> start<br />
+						<span class="token-inst">LABEL</span> end
 					</div>
 				</details>
 				<br />
@@ -390,15 +402,72 @@
 						jump-based control flow:
 					</p>
 					<div class="code-block">
-						<span class="token-inst">LABEL</span> start;<br />
+						<span class="token-inst">LABEL</span> start<br />
 						<span class="token-inst">evaluate</span>
-						condition;<br />
-						<span class="token-inst">JUMP_IF_FALSE</span> end;<br />
-						<span class="token-inst">execute</span> body;<br />
-						<span class="token-inst">JUMP</span> start;<br />
-						<span class="token-inst">LABEL</span> end;
+						condition<br />
+						<span class="token-inst">JUMP_IF_FALSE</span> end<br />
+						<span class="token-inst">execute</span> body<br />
+						<span class="token-inst">JUMP</span> start<br />
+						<span class="token-inst">LABEL</span> end
 					</div>
 				</details>
+			</details>
+			<details>
+				<summary>Subroutines (Functions)</summary>
+				<p>
+					A <code>sub</code> (subroutine) is a reusable block of code
+					that can be called with specific arguments to perform a task
+					and return a value.
+				</p>
+				<div class="code-block">
+					sub name(param1, param2) {<br />&nbsp;&nbsp;&nbsp;&nbsp;//
+					Body of the function<br />&nbsp;&nbsp;&nbsp;&nbsp;return
+					value;<br />}
+				</div>
+				<br />
+				<h4>Semantics</h4>
+				<ol>
+					<li>
+						Before the call, the
+						<span class="highlight">arguments</span> are evaluated
+						and pushed onto the machine stack.
+					</li>
+					<li>
+						The address of the subroutine is pushed to the call
+						stack.
+					</li>
+					<li>
+						Control is transferred to the subroutine label using a
+						jump-and-link mechanism.
+					</li>
+					<li>
+						The subroutine executes its body, typically popping
+						arguments from the stack into local registers.
+					</li>
+					<li>
+						When a <code>return</code> is encountered, the result is
+						placed in the destination register (e.g.,
+						<code>AX</code>), and control returns to the caller. The
+						address of the subroutine is then popped from the call
+						stack.
+					</li>
+				</ol>
+				<br />
+				<h4>Equivalent Calling Syntax</h4>
+				<div class="code-block">var result = name(arg1, arg2)</div>
+				<br />
+				<h4>Bytecode Model</h4>
+				<p>
+					Internally, subroutines use stack-based parameter passing
+					and label-based jumping:
+				</p>
+				<div class="code-block">
+					<span class="token-inst">PUSH</span> arg2<br />
+					<span class="token-inst">PUSH</span> arg1<br />
+					<span class="token-inst">LOAD_ADDRESS</span> .name<br />
+					<span class="token-inst">execute</span> CALL<br />
+					<span class="token-inst">PUSH</span> return_value
+				</div>
 			</details>
 			<details>
 				<summary>Parsing</summary>

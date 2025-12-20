@@ -101,7 +101,35 @@ document.getElementById("code").addEventListener("keydown", (event) => {
 
 tabSlider.addEventListener("input", () => {
 	tabOut.innerText = tabSlider.value;
-	document.documentElement.style.setProperty("--tab-size-val", tabSlider.value);
+	document.documentElement.style.setProperty(
+		"--tab-size-val",
+		tabSlider.value
+	);
+});
+const fileUpload = document.getElementById("file-upload");
+const fileList = document.getElementById("file-list");
+
+fileUpload.addEventListener("change", (event) => {
+	const files = event.target.files;
+
+	for (const file of files) {
+		const reader = new FileReader();
+
+		reader.onload = (e) => {
+			virtualFileSystem[file.name] = e.target.result.replaceAll(
+				"\r\n",
+				"\n"
+			);
+
+			const symb = file.name.endsWith(".xs") ? "📄" : "⌨️";
+
+			const li = document.createElement("li");
+			li.textContent = `${symb} ${file.name}`;
+			fileList.appendChild(li);
+		};
+
+		reader.readAsText(file);
+	}
 });
 
 checkRPNState();
