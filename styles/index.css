@@ -1,0 +1,223 @@
+#btn-login {
+	background: transparent;
+	color: var(--accent-subheading);
+	border: none;
+	font-family: var(--font-main);
+	cursor: pointer;
+	transition: 300ms ease;
+}
+
+#btn-login:hover {
+	color: var(--accent-heading);
+	text-shadow: 0 0 4px var(--accent-heading);
+}
+
+.card {
+	background: linear-gradient(
+		145deg,
+		var(--accent-navbar),
+		var(--accent-navbar2)
+	);
+	width: 100%;
+	max-width: 500px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	border-radius: 12px;
+	border: 1px solid var(--card-border);
+	padding: 24px;
+	gap: 20px;
+	box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.card-title {
+	font-size: 1.2rem;
+	color: var(--accent-subheading);
+	text-transform: uppercase;
+	letter-spacing: 2px;
+}
+
+#files {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start; /* Keeps names to the left */
+    padding: 10px 0;
+}
+
+/* Container for the individual file entry */
+.file-blob {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 10px 15px;
+	background-color: var(--accent-navbar2);
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 6px;
+	width: 100%;
+	margin-bottom: 8px;
+	transition: all 0.2s ease;
+}
+
+/* Icon styling */
+.file-blob i {
+	color: var(--accent-subheading);
+	font-size: 1.1rem;
+}
+
+/* Link styling */
+.file-blob a {
+	text-decoration: none;
+	font-size: 0.95rem;
+	color: var(--accent-text);
+	font-family: "Fira Code", monospace; /* Consistent with your root font */
+	flex-grow: 1;
+}
+
+/* Hover effects */
+.file-blob:hover {
+	border-color: var(--accent-heading);
+	background-color: var(--accent-navbar);
+	transform: translateX(5px); /* Subtle slide effect */
+	box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+.file-blob:hover i {
+	color: var(--accent-heading);
+	text-shadow: 0 0 8px var(--accent-heading);
+}
+
+#btn-create-project {
+	background-color: var(--accent-subheading);
+	color: var(--accent-bg);
+	width: 100%;
+	padding: 20px;
+	border-radius: 8px;
+	border: none;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 12px;
+	cursor: pointer;
+	font-weight: 700;
+	transition:
+		transform 0.2s ease,
+		background-color 0.2s ease;
+	font-family: var(--font-main);
+}
+
+#btn-create-project i {
+	font-size: 2rem;
+}
+
+#btn-create-project:hover {
+	background-color: var(--accent-heading);
+	transform: translateY(-2px);
+	color: var(--accent-bg);
+}
+
+#btn-create-project:active {
+	transform: translateY(0);
+}
+
+#dl-project-name {
+	border: 1px solid var(--card-border);
+	border-radius: 12px;
+	background-color: var(--accent-navbar2);
+	color: var(--accent-text);
+	padding: 2rem;
+	padding-top: 60px;
+	width: 90%;
+	max-width: 450px;
+
+	position: fixed;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+
+	display: none;
+	flex-direction: column;
+	gap: 20px;
+	box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+}
+
+#dl-project-name[open] {
+	display: flex;
+	animation: modal-appear 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+#dl-project-name::backdrop {
+	background: rgba(0, 0, 0, 0.7);
+	-webkit-backdrop-filter: blur(4px);
+	backdrop-filter: blur(4px);
+}
+
+@keyframes modal-appear {
+	from {
+		opacity: 0;
+		transform: translate(-50%, -45%) scale(0.95);
+	}
+	to {
+		opacity: 1;
+		transform: translate(-50%, -50%) scale(1);
+	}
+}
+
+#dl-project-name input {
+	background: var(--accent-navbar);
+	border: 1px solid var(--card-border);
+	padding: 12px;
+	color: white;
+	border-radius: 6px;
+	font-family: var(--font-main);
+}
+
+#btn-close-modal {
+	position: absolute;
+	top: 12px;
+	left: 12px;
+	background: transparent;
+	border: none;
+	color: var(--accent-text);
+	font-size: 1.2rem;
+	cursor: pointer;
+	opacity: 0.6;
+	transition:
+		opacity 0.2s ease,
+		transform 0.2s ease;
+	padding: 5px;
+	line-height: 1;
+}
+
+.modal-header {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	gap: 8px;
+}
+
+#btn-confirm-project {
+	width: 100%;
+	padding: 14px;
+	background-color: var(--accent-subheading);
+	color: white;
+	border: none;
+	border-radius: 6px;
+	font-family: "JetBrains Mono", monospace;
+	font-weight: 800;
+	text-transform: uppercase;
+	cursor: pointer;
+	transition:
+		filter 0.2s,
+		transform 0.1s,
+		box-shadow 300ms ease;
+}
+
+#btn-confirm-project:hover {
+	filter: brightness(1.2);
+	box-shadow: 0 4px 15px rgba(29, 151, 224, 0.3);
+}
+
+#btn-confirm-project:active {
+	transform: scale(0.98);
+}
