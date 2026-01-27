@@ -1,13 +1,15 @@
 name: Deploy to GitHub Pages
 on:
   push:
-    branches: [main]
+    branches: [ main ]
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
-      - name: Checkout
+      - name: Checkout Code
         uses: actions/checkout@v4
 
       - name: Generate SDK Config
@@ -21,7 +23,8 @@ jobs:
             "appId": "${{ secrets.FIREBASE_APP_ID }}"
           }' > sdk.json
 
-      - name: Deploy
+      - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
         with:
-          folder: . # The folder containing your index.html and generated sdk.json
+          folder: . # This includes the sdk.json we just created
+          branch: gh-pages # GitHub Pages usually serves from this branch
