@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Workspace</title>
+
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link
+			href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap"
+			rel="stylesheet"
+		/>
+		<link
+			href="https://fonts.googleapis.com/css2?family=Cascadia+Code:ital,wght@0,200..700;1,200..700&family=Fira+Code:wght@300..700&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap"
+			rel="stylesheet"
+		/>
+
+		<link
+			rel="stylesheet"
+			href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css"
+		/>
+
+		<link rel="stylesheet" href="style.css" />
+		<link rel="stylesheet" href="styles/compiler.css" />
+		<link rel="icon" type="image/x-icon" href="xenon_atom.png" />
+	</head>
+	<body>
+		<nav>
+			<a id="back" href="index.html" title="Back to hub"
+				><i class="fa-solid fa-chevron-left"></i
+			></a>
+			<div class="nav-links">
+				<p id="username"></p>
+			</div>
+		</nav>
+
+		<header>
+			<h1 id="title-main">Workspace</h1>
+		</header>
+
+		<hr />
+
+		<main>
+			<div id="file-nav">
+				<div id="save-status"></div>
+				<button type="button" title="Create new file">
+					<i class="fa-solid fa-circle-plus"></i> Create new file
+				</button>
+				<ul id="files-list"></ul>
+			</div>
+			<div id="editor">
+				<button type="button" title="Compile" id="btn-compile">
+					<i class="fa-solid fa-gears"></i> Compile
+				</button>
+				<div id="codespace"></div>
+
+				<div id="terminal">
+					<div class="terminal-header">
+						<span
+							><i class="fa-solid fa-terminal"></i> Terminal</span
+						>
+						<button id="btn-clear-terminal" type="button">
+							Clear
+						</button>
+					</div>
+					<div id="terminal-output"></div>
+				</div>
+			</div>
+		</main>
+
+		<button type="button" id="btn-toggle-theme" title="Toggle theme">
+			<i class="fa-solid fa-circle-half-stroke"></i>
+		</button>
+
+		<script src="scripts/toggleTheme.js"></script>
+		<script src="scripts/fnInput.js" type="module"></script>
+		<script
+			src="scripts/compiler/compilerInterface.js"
+			type="module"
+		></script>
+	</body>
+</html>

@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<title>X# Compiler</title>
+		<title>Xenon Development Hub</title>
 
 		<link rel="preconnect" href="https://fonts.googleapis.com" />
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -11,593 +11,88 @@
 			href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap"
 			rel="stylesheet"
 		/>
+		<link
+			href="https://fonts.googleapis.com/css2?family=Cascadia+Code:ital,wght@0,200..700;1,200..700&family=Fira+Code:wght@300..700&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap"
+			rel="stylesheet"
+		/>
 
 		<link
 			rel="stylesheet"
 			href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css"
 		/>
+
 		<link rel="stylesheet" href="style.css" />
+		<link rel="stylesheet" href="styles/index.css" />
+		<link rel="icon" type="image/x-icon" href="xenon_atom.png" />
 	</head>
 	<body>
-		<div class="container">
-			<h2>Configure Assembly</h2>
-			<form>
-				<label for="language">Choose an assembly language:</label>
-				<select id="language" name="language">
-					<option value="EmeraldASM">EmeraldASM</option>
-					<option value="XenonASM">XenonASM</option>
-				</select>
-				<br />
-				<label for="store-res">Choose where to store the result:</label>
-				<select id="store-res" name="store-res">
-					<option value="AX">AX</option>
-					<option value="DX">DX</option>
-				</select>
-			</form>
+		<nav>
+			<h2>XenonOS</h2>
+			<div class="nav-links">
+				<p id="username"></p>
+				<button type="button" id="btn-login" title="Login with Google">
+					<i class="fa-brands fa-google"></i> Login
+				</button>
+			</div>
+		</nav>
 
-			<h2>Configure Workspace</h2>
-			<form>
-				<label for="fn">File name:</label>
-				<input type="text" id="fn" name="fn" />
-				<span>.xs</span>
-				<br />
+		<header>
+			<h1 id="title-main">Xenon Development Hub</h1>
+		</header>
 
-				<label for="show-rpn">Show RPN?&nbsp;</label>
-				<input type="checkbox" id="show-rpn" name="show-rpn" />
-				<br />
+		<hr />
 
-				<label for="tab-size">Tab size:&nbsp;</label>
-				<input
-					type="range"
-					title="Tab size"
-					id="tab-size"
-					name="tab-size"
-					min="2"
-					max="8"
-					value="4"
-				/>
-				<span id="tab-size-display">4</span>
-			</form>
+		<main>
+			<div class="card">
+				<h3 class="card-title">Projects</h3>
+				<div id="files"></div>
+			</div>
+			--- or ---
+			<div class="card">
+				<h3 class="card-title">Get started</h3>
+				<button
+					type="button"
+					id="btn-create-project"
+					title="Create a new project"
+				>
+					<i class="fa-solid fa-plus"></i> Create a new project
+				</button>
+			</div>
+		</main>
 
-			<hr />
+		<dialog id="dl-project-name">
+			<button type="button" id="btn-close-modal" title="Close">
+				<i class="fa-solid fa-xmark"></i>
+			</button>
 
-			<h2>Files</h2>
+			<div class="modal-header">
+				<i class="fa-solid fa-rocket"></i>
+				<h3>Initialize Project</h3>
+			</div>
+
+			<p>Give your new workspace a unique name to get started.</p>
+
 			<input
-				type="file"
-				id="file-upload"
-				title="Add File"
-				multiple
-				accept=".xs,.xasm,.easm"
+				type="text"
+				id="inp-project-name"
+				placeholder="xenon-core-v2"
+				autocomplete="off"
 			/>
-			<ul id="file-list"></ul>
 
-			<hr />
+			<button type="button" id="btn-confirm-project">
+				Create Project
+			</button>
+		</dialog>
 
-			<h2>X# Compiler</h2>
-			<div class="buttons">
-				<button type="button" id="import-btn" title="Import">
-					<i class="fa-solid fa-file-import"></i> Import
-				</button>
-				<button type="button" id="export-btn" title="Export">
-					<i class="fa-solid fa-file-export"></i> Export
-				</button>
-				<input
-					type="file"
-					id="file-input"
-					style="display: none"
-					accept=".xs"
-				/>
-				<button type="button" id="compile-btn" title="Compile">
-					<i class="fa-solid fa-play"></i> Compile
-				</button>
-			</div>
-			<div
-				contenteditable="plaintext-only"
-				id="code"
-				autofocus="true"
-				class="div-code"
-			></div>
-			<div id="rpn-output" class="div-code">
-				<span class="label">RPN</span>
-			</div>
-			<div id="output" class="div-code">
-				<span class="label">Assembly Output</span>
-			</div>
+		<button type="button" id="btn-toggle-theme" title="Toggle theme">
+			<i class="fa-solid fa-circle-half-stroke"></i>
+		</button>
 
-			<hr />
-
-			<h2>Documentation</h2>
-			<details>
-				<summary>Overview</summary>
-				<p>
-					<span class="token-inst">X#</span>, or
-					<span class="token-inst">XSharp</span>, is a programming
-					language developed by
-					<span class="highlight">creeperdoesredstone</span>
-					originally for his
-					<span class="token-value">Xenon</span> CPU to aid in
-					developing assembly programs.
-				</p>
-				<p>
-					Now, it is mainly used for
-					<span class="highlight">creeperdoesredstone</span>'s new
-					<span class="highlight">Xenon-124 VM</span> in
-					<span class="token-register">OS Wars 26</span>, but more VMs
-					can be implemented if necessary.
-				</p>
-			</details>
-			<details>
-				<summary>Syntax and Structure</summary>
-				<h4>Statement Termination</h4>
-				<p>
-					Statements must be separated using a semicolon
-					(<code>;</code>).
-				</p>
-				<br />
-				<h4>Comments</h4>
-				<p>
-					Comments are prefixed with 2 slashes (<code>//</code>). They
-					do not affect how the program compiles.
-				</p>
-				<br />
-				<h4>Literals</h4>
-				<p>X# currently supports these types of literals:</p>
-				<table>
-					<tr>
-						<th>Type</th>
-						<th>Format</th>
-						<th>Example</th>
-					</tr>
-					<tr>
-						<td><code class="token-inst">int</code></td>
-						<td id="dt-int">int16</td>
-						<td>
-							<code>123</code>, <code>0</code>, <code>-57</code>
-						</td>
-					</tr>
-					<tr>
-						<td><code class="token-inst">float</code></td>
-						<td id="dt-float">fp16 (bias = 15)</td>
-						<td>
-							<code>3.25</code>, <code>0.0625</code>,
-							<code>-10.5</code>
-						</td>
-					</tr>
-				</table>
-			</details>
-			<details>
-				<summary>Operators and Precedence</summary>
-				<p>
-					<span class="token-inst">X#</span> supports standard
-					arithmetic operators. Expressions are evaluated using
-					standard operator precedence rules, enforced by parentheses
-					(<code>()</code>):
-				</p>
-				<table>
-					<tr>
-						<th>Operator</th>
-						<th>Type</th>
-						<th>Precedence</th>
-						<th>Associativity</th>
-					</tr>
-					<tr>
-						<td><code>-</code>, <code>+</code></td>
-						<td>Unary</td>
-						<td>5</td>
-						<td>right</td>
-					</tr>
-					<tr>
-						<td><code>^</code></td>
-						<td>Binary</td>
-						<td>4</td>
-						<td>right</td>
-					</tr>
-					<tr>
-						<td><code>*</code>, <code>/</code>, <code>%</code></td>
-						<td>Binary</td>
-						<td>3</td>
-						<td>left</td>
-					</tr>
-					<tr>
-						<td><code>+</code>, <code>-</code></td>
-						<td>Binary</td>
-						<td>2</td>
-						<td>left</td>
-					</tr>
-					<tr>
-						<td>
-							<code><</code>, <code><=</code>, <code>==</code>,
-							<code><></code>, <code>></code>, <code>>=</code>
-						</td>
-						<td>Binary</td>
-						<td>1</td>
-						<td>left</td>
-					</tr>
-					<tr>
-						<td>
-							<code>=</code>, <code>+=</code>, <code>-=</code>,
-							<code>*=</code>, <code>/=</code>, <code>%=</code>,
-							<code>^=</code>
-						</td>
-						<td>Binary</td>
-						<td>0</td>
-						<td>right</td>
-					</tr>
-				</table>
-			</details>
-			<details>
-				<summary>Variables and Constants</summary>
-				<details>
-					<summary>Variables</summary>
-					<p>
-						Variables are declared using the
-						<code>var</code> keyword as follows:
-					</p>
-					<div class="code-block">
-						var identifier: dataType = expr;
-					</div>
-					<p>
-						Once declared, the value of a variable can be changed
-						using the assignment operator:
-					</p>
-					<div class="code-block">identifier = expr;</div>
-					<p>
-						Variables can be assigned a value with the same data
-						type.
-					</p>
-					<p>
-						For example, if we have this code then the compiler
-						would throw an error:
-					</p>
-					<div class="code-block">var a: int = 14;<br />a = 2.0;</div>
-				</details>
-				<br />
-				<details>
-					<summary>Constants</summary>
-					<p>
-						Constants are declared using the
-						<code>const</code> keyword as follows:
-					</p>
-					<div class="code-block">
-						const identifier: dataType = expr;
-					</div>
-					<p>
-						Once declared, the value of a constant cannot be
-						changed.
-					</p>
-					<p>Doing the following would result in an error:</p>
-					<div class="code-block">const a: int = 14;<br />a = 2;</div>
-				</details>
-			</details>
-			<details>
-				<summary>Loops</summary>
-				<details>
-					<summary>Count-controlled (for) loops</summary>
-					<p>
-						A <code>for</code> loop is used to execute a group of
-						statements a known amount of times.
-					</p>
-					<div class="code-block">
-						for (init; condition; update) {<br />&nbsp;&nbsp;&nbsp;&nbsp;//
-						Body of the loop (code to be executed)<br />}
-					</div>
-					<br />
-					<h4>Components of a for loop</h4>
-					<ul>
-						<li>
-							<span class="highlight">Initialization</span>: Sets
-							a loop control variable to an initial value. It runs
-							only once at the very beginning. It can be either an
-							assignment expression or a variable declaration.
-						</li>
-
-						<li>
-							<span class="highlight">Condition</span>: Evaluated
-							before each iteration. If true, the body executes.
-							If false, the loop terminates.
-						</li>
-
-						<li>
-							<span class="highlight">Update</span>: Executes
-							after the body of the loop, typically incrementing
-							or decrementing the loop control variable.
-						</li>
-					</ul>
-					<br />
-					<h4>Semantics</h4>
-					<ol>
-						<li>
-							The <span class="highlight">initialization</span> is
-							executed once before the loop.
-						</li>
-						<li>
-							The <span class="highlight">condition</span> is
-							executed before every iteration.
-						</li>
-						<li>
-							If it is false, the loop terminates; else, the block
-							of statements is executed.
-						</li>
-						<li>
-							After the statements are executed, the iterator gets
-							updated.
-						</li>
-						<li>Control returns to the condition.</li>
-					</ol>
-					<br />
-					<h4>Equivalent <code>while</code> loop</h4>
-					<div class="code-block">
-						init;<br />while (condition) {<br />&nbsp;&nbsp;&nbsp;&nbsp;body<br />&nbsp;&nbsp;&nbsp;&nbsp;update;<br />}
-					</div>
-					<br />
-					<h4>Scope rules</h4>
-					<ul>
-						<li>
-							The for loop does not introduce a new variable
-							scope.
-						</li>
-						<li>
-							Variables declared or assigned in
-							<code>init</code> are visible inside the loop.
-						</li>
-						<li>
-							Variables modified in the loop persist after the
-							loop ends.
-						</li>
-					</ul>
-					<br />
-					<h4>Bytecode Model</h4>
-					<p>
-						Internally, the <code>for</code> loop is compiled into
-						jump-based control flow:
-					</p>
-					<div class="code-block">
-						<span class="token-inst">evaluate</span> init<br />
-						<span class="token-inst">LABEL</span> start<br />
-						<span class="token-inst">evaluate</span>
-						condition<br />
-						<span class="token-inst">JUMP_IF_FALSE</span> end<br />
-						<span class="token-inst">execute</span> body<br />
-						<span class="token-inst">evaluate</span> update<br />
-						<span class="token-inst">JUMP</span> start<br />
-						<span class="token-inst">LABEL</span> end
-					</div>
-				</details>
-				<br />
-				<details>
-					<summary>Pre-condition (while) loops</summary>
-					<p>
-						A <code>while</code> loop is used to execute a group of
-						statements a known amount of times.
-					</p>
-					<div class="code-block">
-						while (condition) {<br />&nbsp;&nbsp;&nbsp;&nbsp;// Body
-						of the loop (code to be executed)<br />}
-					</div>
-					<br />
-					<h4>Semantics</h4>
-					<ol>
-						<li>
-							The <span class="highlight">condition</span> is
-							executed before every iteration.
-						</li>
-						<li>
-							If it is false, the loop terminates; else, the block
-							of statements is executed.
-						</li>
-						<li>
-							After the statements are executed, control returns
-							to the condition.
-						</li>
-					</ol>
-					<br />
-					<h4>Equivalent <code>for</code> loop</h4>
-					<div class="code-block">
-						for (; condition; ) {<br />&nbsp;&nbsp;&nbsp;&nbsp;body<br />}
-					</div>
-					<br />
-					<h4>Bytecode Model</h4>
-					<p>
-						Internally, the <code>while</code> loop is compiled into
-						jump-based control flow:
-					</p>
-					<div class="code-block">
-						<span class="token-inst">LABEL</span> start<br />
-						<span class="token-inst">evaluate</span>
-						condition<br />
-						<span class="token-inst">JUMP_IF_FALSE</span> end<br />
-						<span class="token-inst">execute</span> body<br />
-						<span class="token-inst">JUMP</span> start<br />
-						<span class="token-inst">LABEL</span> end
-					</div>
-				</details>
-			</details>
-			<details>
-				<summary>Subroutines (Functions)</summary>
-				<p>
-					A <code>sub</code> (subroutine) is a reusable block of code
-					that can be called with specific arguments to perform a task
-					and return a value.
-				</p>
-				<div class="code-block">
-					sub name(param1, param2) {<br />&nbsp;&nbsp;&nbsp;&nbsp;//
-					Body of the function<br />&nbsp;&nbsp;&nbsp;&nbsp;return
-					value;<br />}
-				</div>
-				<br />
-				<h4>Semantics</h4>
-				<ol>
-					<li>
-						Before the call, the
-						<span class="highlight">arguments</span> are evaluated
-						and pushed onto the machine stack.
-					</li>
-					<li>
-						The address of the subroutine is pushed to the call
-						stack.
-					</li>
-					<li>
-						Control is transferred to the subroutine label using a
-						jump-and-link mechanism.
-					</li>
-					<li>
-						The subroutine executes its body, typically popping
-						arguments from the stack into local registers.
-					</li>
-					<li>
-						When a <code>return</code> is encountered, the result is
-						placed in the destination register (e.g.,
-						<code>AX</code>), and control returns to the caller. The
-						address of the subroutine is then popped from the call
-						stack.
-					</li>
-				</ol>
-				<br />
-				<h4>Equivalent Calling Syntax</h4>
-				<div class="code-block">var result = name(arg1, arg2)</div>
-				<br />
-				<h4>Bytecode Model</h4>
-				<p>
-					Internally, subroutines use stack-based parameter passing
-					and label-based jumping:
-				</p>
-				<div class="code-block">
-					<span class="token-inst">PUSH</span> arg2<br />
-					<span class="token-inst">PUSH</span> arg1<br />
-					<span class="token-inst">LOAD_ADDRESS</span> .name<br />
-					<span class="token-inst">execute</span> CALL<br />
-					<span class="token-inst">PUSH</span> return_value
-				</div>
-			</details>
-			<details>
-				<summary>Parsing</summary>
-				<p>
-					The Xenon parser uses the
-					<span class="token-inst"
-						>Shunting Yard Algorithm (SYA)</span
-					>
-					to convert the infix source code into
-					<span class="highlight">Reverse Polish Notation</span>,
-					allowing the compiler to execute instructions directly using
-					a stack.
-				</p>
-				<p>
-					You can read more about the Shunting Yard Algorithm
-					<a
-						href="https://brilliant.org/wiki/shunting-yard-algorithm/"
-						>here</a
-					>.
-				</p>
-			</details>
-			<details>
-				<summary>Supported ISAs</summary>
-				<p>
-					The <span class="token-inst">X# Compiler</span> currently
-					supports these ISAs:
-				</p>
-				<details>
-					<summary>Xenon-124 ISA (OS Wars 26)</summary>
-					<p>
-						The <span class="highlight">Xenon-124 ISA</span> is for
-						a conceptual
-						<span class="token-value">16-bit</span> virtual machine
-						by
-						<a
-							href="https://scratch.mit.edu/users/creeperdoesredstone/"
-							target="_blank"
-							rel="noopener"
-							>creeperdoesredstone</a
-						>.
-					</p>
-					<p>
-						The ISA for the Xenon-124 VM can be found
-						<a
-							href="https://docs.google.com/spreadsheets/d/1lWkRa2bWt4Imss0K8sfAVuTmYVx9m5RivHfTwb5bBWM/edit?usp=sharing"
-							target="_blank"
-							rel="noopener"
-							>here</a
-						>.
-					</p>
-					<br />
-					<h4>Specs:</h4>
-					<p>
-						- 4 <span class="token-value">16-bit</span> registers:
-						<span class="token-register">AX</span>,
-						<span class="token-register">BX</span>,
-						<span class="token-register">CX</span>, and
-						<span class="token-register">DX</span>.
-					</p>
-					<p>
-						- 2 <span class="token-value">16-bit</span> pointers:
-						<span class="token-register">BP</span> and
-						<span class="token-register">SP</span>.
-					</p>
-					<p>
-						- <span class="token-value">65536</span> addresses =>
-						<span class="token-value">128KiB</span> of RAM and PROM.
-					</p>
-					<p>
-						- <span class="token-value">42</span> instructions so
-						far.
-					</p>
-				</details>
-				<br />
-				<details>
-					<summary>Emerald ISA (OS Wars 25)</summary>
-					<p>
-						The <span class="highlight">Emerald ISA</span> is for an
-						<span class="token-value">8-bit</span> virtual machine
-						developed by
-						<a
-							href="https://scratch.mit.edu/users/creeperdoesredstone/"
-							target="_blank"
-							rel="noopener"
-							>creeperdoesredstone</a
-						>
-						and
-						<a
-							href="https://scratch.mit.edu/users/ttt1101/"
-							target="_blank"
-							rel="noopener"
-							>ttt1101</a
-						>.
-					</p>
-					<p>
-						The ISA for the Emerald VM can be found
-						<a
-							href="https://docs.google.com/spreadsheets/d/1lWkRa2bWt4Imss0K8sfAVuTmYVx9m5RivHfTwb5bBWM/edit?usp=sharing"
-							target="_blank"
-							rel="noopener"
-							>here</a
-						>.
-					</p>
-					<br />
-					<h4>Specs:</h4>
-					<p>
-						- 4 <span class="token-value">8-bit</span> registers:
-						<span class="token-register">SX</span>,
-						<span class="token-register">AX</span>,
-						<span class="token-register">BX</span>, and
-						<span class="token-register">DX</span>.
-					</p>
-					<p>
-						- 2 <span class="token-value">16-bit</span> pointers:
-						<span class="token-register">BP</span> and
-						<span class="token-register">SP</span>.
-					</p>
-					<p>
-						- <span class="token-value">4096</span> addresses =>
-						<span class="token-value">4KiB</span> of memory.
-					</p>
-					<p>- <span class="token-value">24</span> instructions.</p>
-				</details>
-			</details>
-			<hr />
-		</div>
-
-		<script src="operators.js"></script>
-		<script src="compiler.js"></script>
-		<script src="script.js"></script>
-		<script src="index.js"></script>
+		<script>
+			localStorage.removeItem("terminal-msg");
+		</script>
+		<script src="scripts/toggleTheme.js"></script>
+		<script src="scripts/sdk.js" type="module"></script>
+		<script src="scripts/index.js" type="module"></script>
 	</body>
 </html>
