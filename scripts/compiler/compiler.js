@@ -76,7 +76,7 @@ export class Xenon124Compiler {
 		if (this.isCurrentlyFMod) this.instructions.push("CMOD int");
 		const value = Number(node.value);
 		const hexValue = value.toString(16);
-		this.instructions.push(`LDIR AX #${hexValue.padStart(4, "0")}`);
+		this.instructions.push(`LDIR AX, #${hexValue.padStart(4, "0")}`);
 
 		this.isCurrentlyFMod = false;
 
@@ -87,7 +87,7 @@ export class Xenon124Compiler {
 		if (!this.isCurrentlyFMod) this.instructions.push("CMOD float");
 		const value = this.toFP16(Number(node.value));
 		const hexValue = value.toString(16);
-		this.instructions.push(`LDIR AX #${hexValue.padStart(4, "0")}`);
+		this.instructions.push(`LDIR AX, #${hexValue.padStart(4, "0")}`);
 
 		this.isCurrentlyFMod = true;
 
@@ -108,7 +108,7 @@ export class Xenon124Compiler {
 		this.instructions.push("POP DX");
 
 		if (leftMod !== rightMod) {
-			this.instructions.push(rightMod ? "CAST AX, AX" : "CAST DX, DX"); // allows for int + fp16 or vice versa
+			this.instructions.push(leftMod ? "CAST AX, AX" : "CAST DX, DX"); // allows for int + fp16 or vice versa
 		}
 
 		const opMap = {
