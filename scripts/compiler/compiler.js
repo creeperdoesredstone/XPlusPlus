@@ -1,4 +1,5 @@
 import { Exception, Result } from "./helper.js";
+import * as Nodes from "./parser.js";
 
 class CompilationError extends Exception {
 	constructor(startPos, endPos, details) {
@@ -10,11 +11,13 @@ export class Xenon124Compiler {
 	constructor() {
 		this.instructions = [];
 		this.isCurrentlyFMod = false;
+		this.symbolTable = {};
 	}
 
 	compile(ast) {
 		this.instructions = [];
 		this.isCurrentlyFMod = false;
+		this.symbolTable = {};
 		const res = new Result();
 
 		res.register(this.visit(ast));
@@ -25,10 +28,69 @@ export class Xenon124Compiler {
 		return res.success(this.instructions);
 	}
 
+	optimize(node) {
+		if (node instanceof Nodes.BinaryOpNode) {
+			node.left = this.optimize(node.left);
+			node.right = this.optimize(node.right);
+
+			if (
+				node.left instanceof Nodes.IntLiteral &&
+				node.right instanceof Nodes.IntLiteral
+			) {
+				const result = this.evaluate(
+					node.left.value,
+					node.op.value,
+					node.right.value,
+				);
+				return new Nodes.IntLiteral(node.startPos, node.endPos, result);
+			}
+		}
+
+		if (node instanceof Nodes.UnaryOpNode) {
+			if (node.value.constructor.name.includes("Literal")) {
+				const val = Number(node.value.value);
+				const result = node.op.value === "-" ? -val : val;
+
+				return Number.isInteger(result)
+					? new Nodes.IntLiteral(node.startPos, node.endPos, result)
+					: new Nodes.FloatLiteral(
+							node.startPos,
+							node.endPos,
+							result,
+						);
+			}
+		}
+		return node;
+	}
+
+	evaluate(left, op, right) {
+		const l = Number(left);
+		const r = Number(right);
+
+		switch (op) {
+			case "+":
+				return l + r;
+			case "-":
+				return l - r;
+			case "*":
+				return l * r;
+			case "/":
+				if (r === 0) return 0; // Prevent division by zero errors during compilation
+				return l / r;
+			case "%":
+				return l % r;
+			case "**":
+				return Math.pow(l, r);
+			default:
+				return 0;
+		}
+	}
+
 	visit(node) {
-		const nodeType = node.constructor.name;
+		const optimizedNode = this.optimize(node);
+		const nodeType = optimizedNode.constructor.name;
 		const method = this["visit" + nodeType] ?? this.undefinedVisit;
-		return method.call(this, node);
+		return method.call(this, optimizedNode);
 	}
 
 	undefinedVisit(node) {
@@ -75,23 +137,23 @@ export class Xenon124Compiler {
 	visitStatements(node) {
 		const res = new Result();
 
-		node.body.forEach(stmt => {
+		node.body.forEach((stmt) => {
 			res.register(this.visit(stmt));
 			if (res.error) return res;
-		})
+		});
 
 		return res.success(null);
 	}
 
 	visitIntLiteral(node) {
 		if (this.isCurrentlyFMod) this.instructions.push("CMOD int");
-		const value = Number(node.value);
-		const hexValue = value.toString(16);
+		const value = (Number(node.value) & 0xffff) >>> 0;
+		const hexValue = value.toString(16).toUpperCase();
 		this.instructions.push(`LDIR AX, #${hexValue.padStart(4, "0")}`);
 
 		this.isCurrentlyFMod = false;
 
-		return new Result().success(null);
+		return new Result().success(node);
 	}
 
 	visitFloatLiteral(node) {
@@ -102,18 +164,18 @@ export class Xenon124Compiler {
 
 		this.isCurrentlyFMod = true;
 
-		return new Result().success(null);
+		return new Result().success(node);
 	}
 
 	visitBinaryOpNode(node) {
 		const res = new Result();
 
-		res.register(this.visit(node.left));
+		const left = res.register(this.visit(node.left));
 		if (res.error) return res;
 		const leftMod = this.isCurrentlyFMod;
 		this.instructions.push("PUSH AX");
 
-		res.register(this.visit(node.right));
+		const right = res.register(this.visit(node.right));
 		if (res.error) return res;
 		const rightMod = this.isCurrentlyFMod;
 		this.instructions.push("POP DX");
