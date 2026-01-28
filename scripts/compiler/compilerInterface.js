@@ -67,8 +67,7 @@ function printToTerminal(message, type = "default") {
 }
 
 document.getElementById("btn-clear-terminal").addEventListener("click", () => {
-	terminalOutput.innerHTML =
-		'<span class="system-msg">Terminal cleared.</span>';
+	terminalOutput.innerHTML = "Terminal cleared.";
 	localStorage.setItem("terminal-msg", terminalOutput.innerHTML);
 });
 
@@ -95,7 +94,7 @@ compileBtn.addEventListener("click", () => {
 	const result = run();
 
 	if (result.error) {
-		printToTerminal(result.error.toString(), "error");
+		printToTerminal("Encountered an error during compilation:\n" + result.error.toString(), "error");
 	} else {
 		printToTerminal("Compilation successful!", "success");
 		exportBuildToFirestore(result.value);

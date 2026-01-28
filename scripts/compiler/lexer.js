@@ -1,4 +1,4 @@
-import { TT, Token, Exception, Position, Result } from "./helper.js";
+import { TT, Token, Exception, Position, Result, keywords } from "./helper.js";
 
 class IllegalCharacter extends Exception {
 	constructor(startPos, endPos, details) {
@@ -31,12 +31,21 @@ export function lex(fn, ftxt) {
 		switch (true) {
 			case currentChar === " ":
 			case currentChar === "\t":
+				advance();
+				break;
+			
 			case currentChar === "\n":
+				tokens.push(new Token(startPos, startPos, TT.NEWL));
 				advance();
 				break;
 
 			case currentChar === ";":
 				tokens.push(new Token(startPos, startPos, TT.SEMI));
+				advance();
+				break;
+			
+			case currentChar === ":":
+				tokens.push(new Token(startPos, startPos, TT.COL));
 				advance();
 				break;
 
@@ -56,21 +65,52 @@ export function lex(fn, ftxt) {
 				tokens.push(new Token(startPos, startPos, TT.OP, currentChar));
 				advance();
 				break;
+			
+			case currentChar === "=":
+				advance();
+				if (currentChar === "=") {
+					tokens.push(new Token(startPos, pos.copy(), TT.OP, "=="));
+					advance();
+				} else {
+					tokens.push(new Token(startPos, startPos, TT.OP, "="));
+				}
+				break;
+
+			case currentChar === "<":
+				advance();
+				if (currentChar === "=") {
+					tokens.push(new Token(startPos, pos.copy(), TT.OP, "<="));
+					advance();
+				} else {
+					tokens.push(new Token(startPos, startPos, TT.OP, "<"));
+				}
+				break;
+
+			case currentChar === ">":
+				advance();
+				if (currentChar === "=") {
+					tokens.push(new Token(startPos, pos.copy(), TT.OP, ">="));
+					advance();
+				} else {
+					tokens.push(new Token(startPos, startPos, TT.OP, ">"));
+				}
+				break;
 
 			case currentChar === "*":
 				advance();
 				if (currentChar === "*") {
-					tokens.push(new Token(startPos, startPos, TT.OP, "**"));
+					tokens.push(new Token(startPos, pos.copy(), TT.OP, "**"));
 					advance();
 				} else {
 					tokens.push(new Token(startPos, startPos, TT.OP, "*"));
 				}
 				break;
-			
+
 			case currentChar === "/":
 				advance();
 				if (currentChar === "/") {
-					while (currentChar !== null && currentChar !== "\n") advance();
+					while (currentChar !== null && currentChar !== "\n")
+						advance();
 				} else {
 					tokens.push(new Token(startPos, startPos, TT.OP, "/"));
 				}
@@ -111,7 +151,14 @@ export function lex(fn, ftxt) {
 					advance();
 				}
 
-				tokens.push(new Token(startPos, pos.copy(), TT.IDENT, resStr));
+				tokens.push(
+					new Token(
+						startPos,
+						pos.copy(),
+						keywords.includes(resStr) ? TT.KEYW : TT.IDENT,
+						resStr,
+					),
+				);
 				break;
 
 			default:

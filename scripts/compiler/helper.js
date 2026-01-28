@@ -1,5 +1,7 @@
 const tokenTypes = [
 	"EOF",
+	"NEWL",
+	"COL",
 	"SEMI",
 	"INT",
 	"FLOAT",
@@ -10,6 +12,10 @@ const tokenTypes = [
 	"LPAREN",
 	"RPAREN",
 ];
+
+export const dataTypes = ["int", "float"];
+export const keywords = ["var"];
+keywords.push(...dataTypes);
 
 export const TT = {};
 for (const type of tokenTypes) {
@@ -69,6 +75,28 @@ export class Token {
 		this.type = type;
 		this.value = value;
 	}
+
+	matches(type, value) {
+		return this.type === type && this.value === value;
+	}
+}
+
+export function stringWithArrows(ftxt, startPos, endPos) {
+	const lines = ftxt.split("\n");
+	const line = lines[startPos.ln];
+	let arrows = " ".repeat(startPos.col);
+
+	console.log(startPos.col, endPos);
+
+	if (endPos.ln === startPos.ln) {
+		arrows += "^".repeat(endPos.col - startPos.col);
+		if (!arrows.includes("^")) arrows += "^";
+	} else {
+		arrows += "^".repeat(line.length - 1 - startPos.col);
+	}
+
+	const resStr = line + "\n" + arrows;
+	return resStr;
 }
 
 export class Exception {
@@ -83,7 +111,13 @@ export class Exception {
 		let res = "";
 
 		if (this.startPos) {
-			res += `File ${this.startPos.fn}, line ${this.startPos.ln} column ${this.startPos.col}\n\n`;
+			res += `File ${this.startPos.fn}, line ${this.startPos.ln + 1} column ${this.startPos.col + 1}\n\n`;
+			res +=
+				stringWithArrows(
+					this.startPos.ftxt,
+					this.startPos,
+					this.endPos,
+				) + "\n";
 		}
 
 		res += `${this.name}: ${this.details}`;

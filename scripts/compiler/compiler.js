@@ -72,6 +72,17 @@ export class Xenon124Compiler {
 		return res;
 	}
 
+	visitStatements(node) {
+		const res = new Result();
+
+		node.body.forEach(stmt => {
+			res.register(this.visit(stmt));
+			if (res.error) return res;
+		})
+
+		return res.success(null);
+	}
+
 	visitIntLiteral(node) {
 		if (this.isCurrentlyFMod) this.instructions.push("CMOD int");
 		const value = Number(node.value);
