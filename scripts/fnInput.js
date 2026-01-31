@@ -89,7 +89,7 @@ export async function loadFiles(user) {
 
 	terminalOutput.innerHTML =
 		localStorage.getItem("terminal-msg") ||
-		'<span class="system-msg">Xenon OS Compiler [Version 1.0.6]</span> <span class="system-msg">Ready for compilation...</span>';
+		'<span class="system-msg">XenonOS Compiler [Version 1.0.7]</span> <span class="system-msg">Ready for compilation...</span>';
 }
 
 onAuthStateChanged(auth, loadFiles);
@@ -275,3 +275,4 @@ codeSpace.addEventListener("input", () => {
 	showSaveStatus("Saving...");
 	saveContent(codeSpace.innerText);
 });
+
