@@ -61,10 +61,17 @@ export function lex(fn, ftxt) {
 
 			case currentChar === "+":
 			case currentChar === "-":
-			case currentChar === "%":
-				tokens.push(new Token(startPos, startPos, TT.OP, currentChar));
+			case currentChar === "%": {
+				const op = currentChar;
 				advance();
+				if (currentChar === "=") {
+					tokens.push(new Token(startPos, pos.copy(), TT.OP, op + "="));
+					advance();
+				} else {
+					tokens.push(new Token(startPos, startPos, TT.OP, op));
+				}
 				break;
+			}
 			
 			case currentChar === "=":
 				advance();
@@ -101,6 +108,14 @@ export function lex(fn, ftxt) {
 				if (currentChar === "*") {
 					tokens.push(new Token(startPos, pos.copy(), TT.OP, "**"));
 					advance();
+					if (currentChar === "=") {
+						tokens.at(-1).endPos = pos.copy();
+						tokens.at(-1).value = "**=";
+						advance();
+					}
+				} else if (currentChar === "=") {
+					tokens.push(new Token(startPos, startPos, TT.OP, "*="));
+					advance();
 				} else {
 					tokens.push(new Token(startPos, startPos, TT.OP, "*"));
 				}
@@ -111,6 +126,9 @@ export function lex(fn, ftxt) {
 				if (currentChar === "/") {
 					while (currentChar !== null && currentChar !== "\n")
 						advance();
+				} else if (currentChar === "=") {
+					tokens.push(new Token(startPos, startPos, TT.OP, "/="));
+					advance();
 				} else {
 					tokens.push(new Token(startPos, startPos, TT.OP, "/"));
 				}

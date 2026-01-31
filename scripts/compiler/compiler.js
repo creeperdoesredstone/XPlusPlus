@@ -300,6 +300,8 @@ export class Xenon124Compiler {
 		res.register(this.visit(node.value));
 		if (res.error) return res;
 
+		console.log(this.symbolTable)
+
 		if (!this.symbolTable[node.symbol])
 			return res.fail(
 				new Exception(

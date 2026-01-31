@@ -369,6 +369,7 @@ export class ASTTransformer {
 	constructor(symbolTable) {
 		this.symbolTable = symbolTable;
 		this.prunedVars = [];
+		this.compilerActions = [];
 	}
 
 	transform(node) {
@@ -378,15 +379,49 @@ export class ASTTransformer {
 			return this.optimizeBinary(node);
 		}
 		if (node instanceof Statements) {
-			node.body = node.body.map((s) => this.transform(s));
+			let newBody = [];
+			for (let i = 0; i < node.body.length; i++) {
+				let current = node.body[i];
+				let next = node.body[i + 1];
 
+				// Check if current is a VarDeclaration or Assignment to 'x'
+				// and the next is an Assignment to the same 'x'
+				if (this.isOverwritten(current, next)) {
+					this.compilerActions.push({
+						type: "opt",
+						subsystem: "liveness",
+						message: `removed dead store to symbol '${current.symbol || current.left.value}'`,
+					});
+
+					// change next
+					if (current instanceof VarDeclaration) {
+						node.body[i + 1] = new VarDeclaration(
+							next.startPos.copy(),
+							next.endPos.copy(),
+							next.symbol,
+							current.dataType,
+							next.value,
+						);
+					}
+
+					continue;
+				}
+
+				const transformed = this.transform(current);
+				if (transformed) newBody.push(transformed);
+			}
+			node.body = newBody;
 			return node;
 		}
 		if (node instanceof VarDeclaration) {
 			const sym = this.symbolTable.symbols.get(node.symbol);
 
 			if (sym && sym.useCount === 0) {
-				this.prunedVars.push(node.symbol);
+				this.compilerActions.push({
+					type: "warn",
+					subsystem: "unused-symb",
+					message: `unused symbol '${node.symbol}'`,
+				});
 				return null;
 			}
 
@@ -394,6 +429,22 @@ export class ASTTransformer {
 			return node;
 		}
 		return node;
+	}
+
+	isOverwritten(current, next) {
+		if (!next) return false;
+
+		// Case 1: var sym: int = v1 followed by sym = v2
+		if (current instanceof VarDeclaration && next instanceof Assignment) {
+			return current.symbol === next.symbol;
+		}
+
+		// Case 2: sym = v1 followed by sym = v2
+		if (current instanceof Assignment && next instanceof Assignment) {
+			return current.symbol === next.symbol;
+		}
+
+		return false;
 	}
 
 	optimizeBinary(node) {
@@ -431,6 +482,11 @@ function analyzeLiveness(node, symbolTable) {
 	} else if (node instanceof BinaryOpNode) {
 		analyzeLiveness(node.left, symbolTable);
 		analyzeLiveness(node.right, symbolTable);
+	} else if (node instanceof UnaryOpNode) {
+		analyzeLiveness(node.value, symbolTable);
+	} else if (node instanceof Assignment) {
+		const sym = symbolTable.lookup(node.symbol);
+		if (!sym) throw new Error(`Undefined variable: ${node.value}`);
 	}
 }
 
@@ -442,6 +498,6 @@ export function optimizeAST(ast) {
 	const transformer = new ASTTransformer(symbolTable);
 	return {
 		ast: transformer.transform(ast),
-		prunedVars: transformer.prunedVars,
+		compilerActions: transformer.compilerActions,
 	};
 }

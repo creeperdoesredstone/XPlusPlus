@@ -86,8 +86,6 @@ export function stringWithArrows(ftxt, startPos, endPos) {
 	const line = lines[startPos.ln];
 	let arrows = " ".repeat(startPos.col);
 
-	console.log(startPos.col, endPos);
-
 	if (endPos.ln === startPos.ln) {
 		arrows += "^".repeat(endPos.col - startPos.col);
 		if (!arrows.includes("^")) arrows += "^";

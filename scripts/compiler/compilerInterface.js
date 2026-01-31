@@ -62,7 +62,8 @@ function printToTerminal(message, type = "default") {
 }
 
 document.getElementById("btn-clear-terminal").addEventListener("click", () => {
-	terminalOutput.innerHTML = "Terminal cleared.";
+	terminalOutput.innerHTML =
+		"<span class='terminal-line'>Terminal cleared.</span>";
 	localStorage.setItem("terminal-msg", terminalOutput.innerHTML);
 });
 
@@ -78,8 +79,8 @@ function logCompilerAction(type, subsystem, message) {
 
 	// Example output: [OPT] transformer: removed identity x + 0
 	terminalOutput.innerHTML +=
-		`⚙️ <span class="${config.class}">[${config.label}]</span> ` +
-		`<span class="term-subsystem">${subsystem}:</span> ${message}`;
+		`<span class="terminal-line">⚙️ <span class="${config.class}">[${config.label}]</span> ` +
+		`<span class="term-subsystem">${subsystem}:</span> ${message}</span>`;
 	localStorage.setItem("terminal-msg", terminalOutput.innerHTML);
 }
 
@@ -96,13 +97,9 @@ const run = () => {
 	const parseResult = parse(lexResult.value);
 	if (parseResult.error) return parseResult;
 
-	const { ast, prunedVars } = optimizeAST(parseResult.value);
-	prunedVars.forEach((symbol) => {
-		logCompilerAction(
-			"opt",
-			"prune",
-			`Pruned dead symbol: <span class="error-msg">${symbol}</span>`,
-		);
+	const { ast, compilerActions } = optimizeAST(parseResult.value);
+	compilerActions.forEach((action) => {
+		logCompilerAction(action.type, action.subsystem, action.message);
 	});
 
 	const compileResult = new Xenon124Compiler().compile(ast);
