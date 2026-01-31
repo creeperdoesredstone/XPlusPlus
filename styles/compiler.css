@@ -89,10 +89,10 @@ main {
 }
 
 #editor {
+	flex-grow: 1;
 	display: flex;
 	flex-direction: column;
-	flex-grow: 1;
-	gap: 8px;
+	gap: 10px;
 }
 
 #codespace {
@@ -178,13 +178,6 @@ main {
 	box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
 }
 
-#editor-container {
-	flex-grow: 1;
-	display: flex;
-	flex-direction: column;
-	gap: 10px;
-}
-
 #buttons {
 	display: flex;
 	flex-direction: row;
@@ -193,6 +186,7 @@ main {
 
 #terminal {
 	height: 200px;
+	flex-shrink: 0;
 	background-color: #0a0a0a;
 	border: 1px solid var(--card-border);
 	border-top: 2px solid var(--accent-heading);
@@ -222,6 +216,15 @@ main {
 	color: #d1d1d1;
 	line-height: 1.4;
 	white-space: pre;
+}
+
+#terminal-output::-webkit-scrollbar {
+	width: 8px;
+}
+
+#terminal-output::-webkit-scrollbar-thumb {
+	background: var(--accent-subheading);
+	border-radius: 4px;
 }
 
 .terminal-line {
