@@ -249,6 +249,11 @@ main {
 	font-weight: bold;
 }
 
+.term-warn {
+	color: #e6db74;
+	font-weight: bold;
+}
+
 .term-subsystem {
 	color: #6272a4;
 	font-style: italic;
