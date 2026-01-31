@@ -8,10 +8,7 @@ import {
 	doc,
 	updateDoc,
 } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
-import {
-	getAuth,
-	onAuthStateChanged,
-} from "https://www.gstatic.com/firebasejs/12.8.0/firebase-auth.js";
+import { getAuth } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-auth.js";
 
 const auth = getAuth(app);
 
@@ -57,9 +54,7 @@ const terminalOutput = document.getElementById("terminal-output");
 function printToTerminal(message, type = "default") {
 	const line = document.createElement("span");
 	line.className = `terminal-line ${type}-msg`;
-
-	const prefix = type === "compiler" ? "Compiler Message: " : "> ";
-	line.innerText = prefix + message;
+	line.innerText = message;
 	terminalOutput.appendChild(line);
 	terminalOutput.scrollTop = terminalOutput.scrollHeight;
 
@@ -70,6 +65,23 @@ document.getElementById("btn-clear-terminal").addEventListener("click", () => {
 	terminalOutput.innerHTML = "Terminal cleared.";
 	localStorage.setItem("terminal-msg", terminalOutput.innerHTML);
 });
+
+function logCompilerAction(type, subsystem, message) {
+	const types = {
+		info: { label: "INFO", class: "term-info" },
+		opt: { label: "OPT", class: "term-opt" },
+		warn: { label: "WARN", class: "term-warn" },
+		err: { label: "ERR", class: "term-danger" },
+	};
+
+	const config = types[type] || types.info;
+
+	// Example output: [OPT] transformer: removed identity x + 0
+	terminalOutput.innerHTML +=
+		`⚙️ <span class="${config.class}">[${config.label}]</span> ` +
+		`<span class="term-subsystem">${subsystem}:</span> ${message}`;
+	localStorage.setItem("terminal-msg", terminalOutput.innerHTML);
+}
 
 const run = () => {
 	const ftxt = codeSpace.innerText;
@@ -86,7 +98,11 @@ const run = () => {
 
 	const { ast, prunedVars } = optimizeAST(parseResult.value);
 	prunedVars.forEach((symbol) => {
-		printToTerminal(`Pruned dead symbol: ${symbol}`, "compiler");
+		logCompilerAction(
+			"opt",
+			"prune",
+			`Pruned dead symbol: <span class="error-msg">${symbol}</span>`,
+		);
 	});
 
 	const compileResult = new Xenon124Compiler().compile(ast);
