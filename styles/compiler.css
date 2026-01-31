@@ -25,11 +25,11 @@ main {
 }
 
 .icon-xasm {
-    color: #ff5722 !important;
+	color: #ff5722 !important;
 }
 
 .icon-default {
-    color: var(--accent-subheading); 
+	color: var(--accent-subheading);
 }
 
 #file-nav button,
@@ -242,6 +242,21 @@ main {
 }
 .asm-msg {
 	color: #e6db74;
+}
+
+.term-opt {
+	color: #ffb86c;
+	font-weight: bold;
+}
+
+.term-subsystem {
+	color: #6272a4;
+	font-style: italic;
+}
+
+.term-info {
+	color: #8be9fd;
+	font-weight: bold;
 }
 
 #btn-clear-terminal {
