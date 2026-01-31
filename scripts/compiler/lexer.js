@@ -58,6 +58,26 @@ export function lex(fn, ftxt) {
 				tokens.push(new Token(startPos, startPos, TT.RPAREN));
 				advance();
 				break;
+			
+			case currentChar === "{":
+				tokens.push(new Token(startPos, startPos, TT.LBRACE));
+				advance();
+				break;
+
+			case currentChar === "}":
+				tokens.push(new Token(startPos, startPos, TT.RBRACE));
+				advance();
+				break;
+			
+			case currentChar === "[":
+				tokens.push(new Token(startPos, startPos, TT.LSQUARE));
+				advance();
+				break;
+
+			case currentChar === "]":
+				tokens.push(new Token(startPos, startPos, TT.RSQUARE));
+				advance();
+				break;
 
 			case currentChar === "+":
 			case currentChar === "-":

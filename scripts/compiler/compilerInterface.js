@@ -102,6 +102,8 @@ const run = () => {
 		logCompilerAction(action.type, action.subsystem, action.message);
 	});
 
+	console.log(ast);
+
 	const compileResult = new Xenon124Compiler().compile(ast);
 	return compileResult;
 };

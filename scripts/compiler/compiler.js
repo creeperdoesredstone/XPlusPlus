@@ -1,4 +1,4 @@
-import { Exception, Result } from "./helper.js";
+import { TT, Exception, Result } from "./helper.js";
 import * as Nodes from "./parser.js";
 
 class CompilationError extends Exception {
@@ -29,6 +29,7 @@ export class Xenon124Compiler {
 		this.isAccessingRAM = true;
 		this.labelCount = 0;
 		this.symbolTable = {};
+		this.canFoldVars = true;
 	}
 
 	compile(ast) {
@@ -44,6 +45,7 @@ export class Xenon124Compiler {
 	}
 
 	optimize(node) {
+		console.log(node);
 		if (node instanceof Nodes.BinaryOpNode) {
 			node.left = this.optimize(node.left);
 			node.right = this.optimize(node.right);
@@ -83,12 +85,14 @@ export class Xenon124Compiler {
 		}
 
 		if (node instanceof Nodes.Identifier) {
-			if (this.symbolTable[node.value]?.value) {
-				const value = this.optimize(
-					copyObjectWithPrototype(
-						this.symbolTable[node.value]?.value,
-					),
-				);
+			const symbol = this.symbolTable[node.value];
+			// Only fold if it's a known constant literal
+			if (
+				this.canFoldVars &&
+				symbol?.value &&
+				symbol.value.constructor.name.includes("Literal")
+			) {
+				const value = copyObjectWithPrototype(symbol.value);
 				value.startPos = node.startPos;
 				value.endPos = node.endPos;
 				return value;
@@ -115,6 +119,18 @@ export class Xenon124Compiler {
 				return l % r;
 			case "**":
 				return Math.pow(l, r);
+			case "<":
+				return -Number(l < r);
+			case "<=":
+				return -Number(l <= r);
+			case ">":
+				return -Number(l > r);
+			case ">=":
+				return -Number(l >= r);
+			case "==":
+				return -Number(l == r);
+			case "!=":
+				return -Number(l != r);
 			default:
 				return 0;
 		}
@@ -205,14 +221,13 @@ export class Xenon124Compiler {
 
 	visitIdentifier(node) {
 		const res = new Result();
-		if (res.error) return res;
 
 		if (!this.symbolTable[node.value])
 			return res.fail(
 				new Exception(
 					node.startPos,
 					node.endPos,
-					"SymbolError",
+					"Symbol Error",
 					`Symbol '${node.value}' is undefined.`,
 				),
 			);
@@ -240,6 +255,13 @@ export class Xenon124Compiler {
 			this.instructions.push(leftMod ? "CAST AX, AX" : "CAST DX, DX"); // allows for int + fp16 or vice versa
 		}
 
+		const cmpOp = ["<", "<=", ">", ">=", "==", "!="];
+
+		if (cmpOp.includes(node.op.value)) {
+			this.instructions.push("COMP DX, AX");
+			return res.success(null);
+		}
+
 		const opMap = {
 			"+": "ADD",
 			"-": "SUB",
@@ -262,7 +284,7 @@ export class Xenon124Compiler {
 		if (res.error) return res;
 
 		this.instructions.push(`LDIR DX, #0000`);
-		this.instructions.push("CALC SUB DX, AX, AX");
+		this.instructions.push("SUB DX, AX, AX");
 
 		return res.success(null);
 	}
@@ -278,7 +300,7 @@ export class Xenon124Compiler {
 				new Exception(
 					node.startPos,
 					node.endPos,
-					"SymbolError",
+					"Symbol Error",
 					`Symbol '${node.symbol}' is already defined.`,
 				),
 			);
@@ -300,8 +322,6 @@ export class Xenon124Compiler {
 		res.register(this.visit(node.value));
 		if (res.error) return res;
 
-		console.log(this.symbolTable)
-
 		if (!this.symbolTable[node.symbol])
 			return res.fail(
 				new Exception(
@@ -309,6 +329,16 @@ export class Xenon124Compiler {
 					node.endPos,
 					"SymbolError",
 					`Symbol '${node.symbol}' is undefined.`,
+				),
+			);
+
+		if (this.symbolTable[node.symbol].type !== node.value.type)
+			return res.fail(
+				new Exception(
+					node.value.startPos,
+					node.value.endPos,
+					"Type Error",
+					`Cannot assign '${node.value.type}' to '${this.symbolTable[node.symbol].type}'.`,
 				),
 			);
 
@@ -320,6 +350,43 @@ export class Xenon124Compiler {
 		this.instructions.push("LDIR BX, $" + node.symbol);
 		this.instructions.push("STRE @BX, AX");
 
+		return res.success(null);
+	}
+
+	visitForLoop(node) {
+		const endMap = {
+			"<": "GE",
+			">": "LE",
+			"==": "NE",
+			"<=": "GT",
+			">=": "LT",
+			"!=": "EQ",
+		};
+
+		const res = new Result();
+		res.register(this.visit(node.startExpr));
+		if (res.error) return res;
+
+		const startLabel = this.labelCount++;
+		const endLabel = this.labelCount++;
+
+		this.canFoldVars = false;
+		this.instructions.push(`L${startLabel}:`);
+		res.register(this.visit(node.endExpr));
+		if (res.error) return res;
+		this.instructions.push(
+			`JUMP ${endMap[node.endExpr.op.value]}, .L${endLabel}`,
+		);
+
+		res.register(this.visit(node.body));
+		if (res.error) return res;
+
+		res.register(this.visit(node.stepExpr));
+		if (res.error) return res;
+		this.instructions.push(`JUMP AL, .L${startLabel}`);
+		this.instructions.push(`L${endLabel}:`);
+
+		this.canFoldVars = true;
 		return res.success(null);
 	}
 }

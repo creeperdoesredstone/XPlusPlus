@@ -19,6 +19,7 @@ export class IntLiteral {
 		this.startPos = startPos;
 		this.endPos = endPos;
 		this.value = value;
+		this.type = "int";
 	}
 }
 
@@ -27,14 +28,16 @@ export class FloatLiteral {
 		this.startPos = startPos;
 		this.endPos = endPos;
 		this.value = value;
+		this.type = "float";
 	}
 }
 
 export class Identifier {
-	constructor(startPos, endPos, value) {
+	constructor(startPos, endPos, value, type) {
 		this.startPos = startPos;
 		this.endPos = endPos;
 		this.value = value;
+		this.type = type;
 	}
 }
 
@@ -45,6 +48,20 @@ export class BinaryOpNode {
 		this.left = left;
 		this.op = op;
 		this.right = right;
+		this.type = this.determineType();
+	}
+
+	determineType() {
+		const leftType = this.left.type;
+		const rightType = this.right.type;
+
+		if (["==", "!=", "<", ">"].includes(this.op.value)) {
+			return "bool";
+		}
+
+		if (leftType === "float" || rightType === "float") return "float";
+
+		return leftType;
 	}
 }
 
@@ -76,14 +93,27 @@ export class Assignment {
 	}
 }
 
+export class ForLoop {
+	constructor(startPos, endPos, startExpr, endExpr, stepExpr, body) {
+		this.startPos = startPos;
+		this.endPos = endPos;
+		this.startExpr = startExpr;
+		this.endExpr = endExpr;
+		this.stepExpr = stepExpr;
+		this.body = body;
+	}
+}
+
 export function parse(tokens) {
 	let pos = -1;
 	let currentTok;
+	const symbolTable = new SymbolTable();
 
 	function advance() {
 		pos++;
 		if (pos < tokens.length) currentTok = tokens[pos];
 	}
+
 	advance();
 	const res = new Result();
 	const stmts = res.register(statements());
@@ -100,12 +130,20 @@ export function parse(tokens) {
 
 	return res.success(stmts);
 
-	function statements() {
+	function statements(terminate = undefined) {
 		const res = new Result();
 		const stmts = [];
 		const startPos = currentTok.startPos.copy();
 
 		while (currentTok.type === TT.NEWL) advance();
+
+		if (
+			currentTok.type === TT.EOF ||
+			(terminate !== undefined && currentTok.type === terminate)
+		)
+			return res.success(
+				new Statements(startPos, currentTok.endPos, stmts),
+			);
 
 		let stmt = res.register(statement());
 		if (res.error) return res;
@@ -122,7 +160,11 @@ export function parse(tokens) {
 			}
 			if (newlineCount === 0) moreStatements = false;
 
-			if (currentTok.type === TT.EOF) moreStatements = false;
+			if (
+				currentTok.type === TT.EOF ||
+				(terminate !== undefined && currentTok.type === terminate)
+			)
+				moreStatements = false;
 
 			if (!moreStatements) break;
 
@@ -147,6 +189,8 @@ export function parse(tokens) {
 			switch (currentTok.value) {
 				case "var":
 					return varDeclaration();
+				case "for":
+					return forLoop();
 			}
 		}
 		return expr();
@@ -166,6 +210,17 @@ export function parse(tokens) {
 				),
 			);
 		const iden = currentTok.value;
+
+		if (symbolTable.symbols.has(iden))
+			return res.fail(
+				new Exception(
+					currentTok.startPos,
+					currentTok.endPos,
+					"Symbol Error",
+					`Symbol '${iden}' is already defined.`,
+				),
+			);
+
 		advance();
 
 		if (currentTok.type !== TT.COL)
@@ -205,8 +260,105 @@ export function parse(tokens) {
 		const value = res.register(expr());
 		if (res.error) return res;
 
+		if (dataType !== value.type)
+			return res.fail(
+				new Exception(
+					value.startPos,
+					value.endPos,
+					"Type Error",
+					`Cannot assign '${value.type}' to '${dataType}'.`,
+				),
+			);
+
+		symbolTable.define(iden, dataType, 1);
+
 		return res.success(
 			new VarDeclaration(startPos, value.endPos, iden, dataType, value),
+		);
+	}
+
+	function forLoop() {
+		const res = new Result();
+		const startPos = currentTok.startPos.copy();
+		advance();
+
+		if (currentTok.type !== TT.LPAREN)
+			return res.fail(
+				new InvalidSyntax(
+					currentTok.startPos,
+					currentTok.endPos,
+					"Expected '(' after 'for'.",
+				),
+			);
+		advance();
+
+		const startExpr = res.register(statement());
+		if (res.error) return res;
+
+		if (currentTok.type !== TT.SEMI)
+			return res.fail(
+				new InvalidSyntax(
+					currentTok.startPos,
+					currentTok.endPos,
+					"Expected ';' after start expression.",
+				),
+			);
+		advance();
+
+		const endExpr = res.register(statement());
+		if (res.error) return res;
+
+		if (currentTok.type !== TT.SEMI)
+			return res.fail(
+				new InvalidSyntax(
+					currentTok.startPos,
+					currentTok.endPos,
+					"Expected ';' after end expression.",
+				),
+			);
+		advance();
+
+		const stepExpr = res.register(statement());
+		if (res.error) return res;
+
+		if (currentTok.type !== TT.RPAREN)
+			return res.fail(
+				new InvalidSyntax(
+					currentTok.startPos,
+					currentTok.endPos,
+					"Expected ')' after step expression.",
+				),
+			);
+		advance();
+
+		if (currentTok.type !== TT.LBRACE)
+			return res.fail(
+				new InvalidSyntax(
+					currentTok.startPos,
+					currentTok.endPos,
+					"Expected '{' after loop initialization.",
+				),
+			);
+		advance();
+
+		const body = res.register(statements(TT.RBRACE));
+		if (res.error) return res;
+
+		console.log(body);
+
+		if (currentTok.type !== TT.RBRACE)
+			return res.fail(
+				new InvalidSyntax(
+					currentTok.startPos,
+					currentTok.endPos,
+					"Expected '}' after loop body.",
+				),
+			);
+		const endPos = currentTok.endPos.copy();
+		advance();
+
+		return res.success(
+			new ForLoop(startPos, endPos, startExpr, endExpr, stepExpr, body),
 		);
 	}
 
@@ -238,7 +390,7 @@ export function parse(tokens) {
 
 	function expr() {
 		const res = new Result();
-		const left = res.register(additive());
+		const left = res.register(comparison());
 		if (res.error) return res;
 
 		if (currentTok.matches(TT.OP, "=")) {
@@ -253,7 +405,7 @@ export function parse(tokens) {
 			}
 
 			advance();
-			const value = res.register(additive());
+			const value = res.register(comparison());
 			if (res.error) return res;
 
 			return res.success(
@@ -261,6 +413,10 @@ export function parse(tokens) {
 			);
 		}
 		return res.success(left);
+	}
+
+	function comparison() {
+		return binaryOp(["<", "<=", "==", "!=", ">", ">="], additive);
 	}
 
 	function additive() {
@@ -305,10 +461,25 @@ export function parse(tokens) {
 			return res.success(
 				new FloatLiteral(tok.startPos, tok.endPos, Number(tok.value)),
 			);
-		if (tok.type === TT.IDENT)
+		if (tok.type === TT.IDENT) {
+			if (!symbolTable.symbols.has(tok.value))
+				return res.fail(
+					new Exception(
+						tok.startPos,
+						tok.endPos,
+						"Symbol Error",
+						`Symbol '${tok.value}' is undefined.`,
+					),
+				);
 			return res.success(
-				new Identifier(tok.startPos, tok.endPos, tok.value),
+				new Identifier(
+					tok.startPos,
+					tok.endPos,
+					tok.value,
+					symbolTable.symbols.get(tok.value).dataType,
+				),
 			);
+		}
 		if (tok.type === TT.LPAREN) {
 			const expression = res.register(expr());
 			if (res.error) return res;
@@ -386,7 +557,10 @@ export class ASTTransformer {
 
 				// Check if current is a VarDeclaration or Assignment to 'x'
 				// and the next is an Assignment to the same 'x'
-				if (this.isOverwritten(current, next)) {
+				if (
+					this.isOverwritten(current, next) &&
+					current.dataType === next.value.type
+				) {
 					this.compilerActions.push({
 						type: "opt",
 						subsystem: "liveness",

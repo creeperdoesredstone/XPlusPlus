@@ -11,10 +11,14 @@ const tokenTypes = [
 	"OP",
 	"LPAREN",
 	"RPAREN",
+	"LBRACE",
+	"RBRACE",
+	"LSQUARE",
+	"RSQUARE",
 ];
 
 export const dataTypes = ["int", "float"];
-export const keywords = ["var"];
+export const keywords = ["var", "for"];
 keywords.push(...dataTypes);
 
 export const TT = {};
