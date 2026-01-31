@@ -237,6 +237,9 @@ main {
 .error-msg {
 	color: #ff4d4d;
 }
+.compiler-msg {
+	color: #e6a074;
+}
 .asm-msg {
 	color: #e6db74;
 }
