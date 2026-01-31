@@ -53,15 +53,22 @@ export async function loadFiles(user) {
 
 	if (data && Object.entries(data.projects[pname].files)) {
 		fileList.innerHTML = "";
-		Object.entries(data.projects[pname].files).forEach((file) => {
+
+		const fileLists = Object.entries(data.projects[pname].files);
+		fileLists.sort((a, b) => a[0].localeCompare(b[0]));
+
+		fileLists.forEach((file) => {
 			const li = document.createElement("li");
 			li.className = "file-blob";
+			const fn = file[0].replace(/\_/g, ".");
+			const isXasm = fn.toLowerCase().endsWith(".xasm");
+			const iconClass = isXasm
+				? "fa-solid fa-file-lines icon-xasm"
+				: "fa-solid fa-file-code icon-default";
 
 			const icon = document.createElement("i");
-			icon.className = "fa-solid fa-file-code";
+			icon.className = iconClass;
 			li.appendChild(icon);
-
-			const fn = file[0].replace(/\_/g, ".");
 
 			const fileLink = document.createElement("a");
 			fileLink.innerText = fn;
@@ -161,7 +168,7 @@ async function finalizeFileCreation(name, element) {
 	try {
 		await updateDoc(userRef, {
 			[`projects.${sanitizedProjectName}.files.${sanitizedFileName}`]:
-				"// write your code here",
+				"// TODO: write code",
 		});
 
 		console.log(`File ${name} saved successfully!`);

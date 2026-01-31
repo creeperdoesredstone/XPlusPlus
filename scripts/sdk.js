@@ -4,8 +4,6 @@ import {
 	doc,
 	getDoc,
 	setDoc,
-	updateDoc,
-	serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
 
 export let app = null;
@@ -63,7 +61,7 @@ export async function loadUserData(user) {
 			console.log("New user detected. Creating profile...");
 			const defaultData = {
 				username: user.displayName,
-				files: {},
+				projects: {},
 			};
 			await setDoc(userRef, defaultData);
 			return defaultData;
