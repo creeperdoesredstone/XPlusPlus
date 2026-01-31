@@ -23,6 +23,7 @@
 
 		<link rel="stylesheet" href="style.css" />
 		<link rel="stylesheet" href="styles/compiler.css" />
+		<link rel="stylesheet" href="styles/prism.css" />
 		<link rel="icon" type="image/x-icon" href="xenon_atom.png" />
 	</head>
 	<body>
@@ -58,7 +59,8 @@
 						<i class="fa-solid fa-computer"></i> VM
 					</button>
 				</div>
-				<div id="codespace"></div>
+				<div id="codespace"><span class="token comment">// Select a file to get started...</span>
+				</div>
 
 				<div id="terminal">
 					<div class="terminal-header">
@@ -80,12 +82,13 @@
 
 		<script>
 			const urlParams = new URLSearchParams(window.location.search);
-			const fn = urlParams.get("file").replace("_", ".");
+			const fn = urlParams.get("file")?.replace("_", ".") || "";
 			const compileBtn = document.querySelector("#btn-compile");
 
 			compileBtn.disabled = fn.endsWith(".xasm");
 		</script>
 
+		<script src="scripts/prism.js"></script>
 		<script src="scripts/toggleTheme.js"></script>
 		<script src="scripts/fnInput.js" type="module"></script>
 		<script
