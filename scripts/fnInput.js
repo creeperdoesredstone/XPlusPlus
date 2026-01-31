@@ -255,7 +255,7 @@ codeSpace.addEventListener("keydown", (e) => {
 
 		const selection = window.getSelection();
 		const range = selection.getRangeAt(0);
-		const br = document.createTextNode("\n");
+		const br = document.createTextNode("\n\u200B");
 
 		range.deleteContents();
 		range.insertNode(br);
@@ -267,6 +267,37 @@ codeSpace.addEventListener("keydown", (e) => {
 		selection.addRange(range);
 
 		codeSpace.dispatchEvent(new Event("input"));
+	}
+
+	if (e.key === "Backspace") {
+		const selection = window.getSelection();
+		if (!selection.rangeCount) return;
+
+		const range = selection.getRangeAt(0);
+		const cursorNode = range.startContainer;
+		const offset = range.startOffset;
+
+		if (cursorNode.nodeType === Node.TEXT_NODE && offset > 0) {
+			const textContent = cursorNode.textContent;
+
+			if (textContent[offset - 1] === "\u200B") {
+				e.preventDefault();
+
+				const deleteCount = offset >= 2 ? 2 : 1;
+
+				const newContent =
+					textContent.substring(0, offset - deleteCount) +
+					textContent.substring(offset);
+
+				cursorNode.textContent = newContent;
+				range.setStart(cursorNode, offset - deleteCount);
+				range.collapse(true);
+				selection.removeAllRanges();
+				selection.addRange(range);
+
+				codeSpace.dispatchEvent(new Event("input"));
+			}
+		}
 	}
 });
 
