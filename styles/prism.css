@@ -1,0 +1,125 @@
+/* PrismJS 1.30.0
+https://prismjs.com/download#themes=prism-tomorrow&languages=lua */
+code[class*="language-"],
+pre[class*="language-"] {
+	color: #ccc;
+	background: 0 0;
+	font-family: Consolas, Monaco, "Andale Mono", "Ubuntu Mono", monospace;
+	font-size: 1em;
+	text-align: left;
+	white-space: pre;
+	word-spacing: normal;
+	word-break: normal;
+	word-wrap: normal;
+	line-height: 1.5;
+	-moz-tab-size: 4;
+	-o-tab-size: 4;
+	tab-size: 4;
+	-webkit-hyphens: none;
+	-moz-hyphens: none;
+	-ms-hyphens: none;
+	hyphens: none;
+}
+pre[class*="language-"] {
+	padding: 1em;
+	margin: 0.5em 0;
+	overflow: auto;
+}
+:not(pre) > code[class*="language-"],
+pre[class*="language-"] {
+	background: #2d2d2d;
+}
+:not(pre) > code[class*="language-"] {
+	padding: 0.1em;
+	border-radius: 0.3em;
+	white-space: normal;
+}
+
+:root {
+	--accent-comment: #2d4543;
+	--accent-punctuation: #858585;
+	--accent-namespace: #e2777a;
+	--accent-function-name: #6196cc;
+	--accent-number: #f08d49;
+	--accent-function: #f8c555;
+	--accent-keyword: #cc99cd;
+	--accent-string: #7ec699;
+	--accent-operator: #67cdcc;
+}
+
+body.light {
+	--accent-comment: #757575;
+	--accent-punctuation: #494949;
+	--accent-namespace: #c00000;
+	--accent-function-name: #0056b3;
+	--accent-number: #0000d1;
+	--accent-function: #7a4900;
+	--accent-keyword: #8e24aa;
+	--accent-string: #22863a;
+	--accent-operator: #00796b;
+}
+
+.token.block-comment,
+.token.cdata,
+.token.comment,
+.token.doctype,
+.token.prolog {
+	color: var(--accent-comment);
+}
+.token.punctuation {
+	color: var(--accent-punctuation);
+}
+.token.attr-name,
+.token.deleted,
+.token.namespace,
+.token.tag {
+	font-style: italic;
+	color: var(--accent-namespace);
+}
+.token.function-name {
+	color: var(--accent-function-name);
+}
+.token.boolean,
+.token.number {
+	color: var(--accent-number);
+}
+.token.function,
+.token.class-name,
+.token.constant,
+.token.property,
+.token.symbol {
+	color: var(--accent-function);
+}
+.token.atrule,
+.token.builtin,
+.token.important,
+.token.keyword,
+.token.selector {
+	color: var(--accent-keyword);
+}
+.token.attr-value,
+.token.char,
+.token.regex,
+.token.string,
+.token.variable {
+	color: var(--accent-string);
+}
+.token.entity,
+.token.operator,
+.token.url {
+	color: var(--accent-operator);
+}
+.token.bold,
+.token.important,
+.token.keyword {
+	font-weight: 700;
+}
+.token.italic {
+	font-style: italic;
+}
+.token.entity {
+	cursor: help;
+}
+.token.inserted {
+	color: green;
+}
