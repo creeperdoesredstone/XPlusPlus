@@ -82,13 +82,14 @@ export async function loadFiles(user) {
 		codeSpace.innerText =
 			data.projects[pname].files[fn.replace(/\./g, "_")];
 		codeSpace.contentEditable = true;
+		updateEditorWithPrism();
 	} else {
 		codeSpace.contentEditable = false;
 	}
 
 	terminalOutput.innerHTML =
 		localStorage.getItem("terminal-msg") ||
-		'<span class="system-msg">Xenon OS Compiler [Version 1.0.4]</span> <span class="system-msg">Ready for compilation...</span>';
+		'<span class="system-msg">Xenon OS Compiler [Version 1.0.6]</span> <span class="system-msg">Ready for compilation...</span>';
 }
 
 onAuthStateChanged(auth, loadFiles);
@@ -193,7 +194,84 @@ function showSaveStatus(status) {
 		status === "Error" ? "#ff4d4d" : "var(--accent-subheading)";
 }
 
+function getCaretCharacterOffsetWithin(element) {
+	let caretOffset = 0;
+	const doc = element.ownerDocument || element.document;
+	const win = doc.defaultView || doc.parentWindow;
+	const sel = win.getSelection();
+
+	if (sel.rangeCount > 0) {
+		const range = sel.getRangeAt(0);
+		const preCaretRange = range.cloneRange();
+		preCaretRange.selectNodeContents(element);
+		preCaretRange.setEnd(range.endContainer, range.endOffset);
+		caretOffset = preCaretRange.toString().length;
+	}
+	return caretOffset;
+}
+
+function setCaretPosition(element, offset) {
+	const range = document.createRange();
+	const sel = window.getSelection();
+	let charCount = 0;
+	let nodeStack = [element];
+	let node,
+		found = false;
+
+	while (nodeStack.length > 0 && !found) {
+		node = nodeStack.pop();
+		if (node.nodeType === 3) {
+			// Text node
+			let nextCharCount = charCount + node.length;
+			if (offset <= nextCharCount) {
+				range.setStart(node, offset - charCount);
+				range.collapse(true);
+				found = true;
+			}
+			charCount = nextCharCount;
+		} else {
+			for (let i = node.childNodes.length - 1; i >= 0; i--) {
+				nodeStack.push(node.childNodes[i]);
+			}
+		}
+	}
+	sel.removeAllRanges();
+	sel.addRange(range);
+}
+
+function updateEditorWithPrism() {
+	const urlParams = new URLSearchParams(window.location.search);
+	const fname = urlParams.get("file").split(".")[1];
+	const code = codeSpace.innerText;
+	const offset = getCaretCharacterOffsetWithin(codeSpace);
+	const highlighted = Prism.highlight(code, Prism.languages[fname], fname);
+	codeSpace.innerHTML = highlighted;
+	setCaretPosition(codeSpace, offset);
+}
+
+codeSpace.addEventListener("keydown", (e) => {
+	if (e.key === "Enter") {
+		e.preventDefault();
+
+		const selection = window.getSelection();
+		const range = selection.getRangeAt(0);
+		const br = document.createTextNode("\n");
+
+		range.deleteContents();
+		range.insertNode(br);
+
+		range.setStartAfter(br);
+		range.setEndAfter(br);
+		range.collapse(false);
+		selection.removeAllRanges();
+		selection.addRange(range);
+
+		codeSpace.dispatchEvent(new Event("input"));
+	}
+});
+
 codeSpace.addEventListener("input", () => {
+	updateEditorWithPrism();
 	showSaveStatus("Saving...");
 	saveContent(codeSpace.innerText);
 });
