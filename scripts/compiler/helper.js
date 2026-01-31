@@ -3,6 +3,8 @@ const tokenTypes = [
 	"NEWL",
 	"COL",
 	"SEMI",
+	"COMMA",
+	"DOT",
 	"INT",
 	"FLOAT",
 	"STRING",
@@ -18,7 +20,23 @@ const tokenTypes = [
 ];
 
 export const dataTypes = ["int", "float"];
-export const keywords = ["var", "for"];
+export const keywords = [
+	"var",
+	"for",
+	"while",
+	"if",
+	"elseif",
+	"else",
+	"sub",
+	"import",
+	"from",
+	"switch",
+	"case",
+	"return",
+	"class",
+	"break",
+	"continue",
+];
 keywords.push(...dataTypes);
 
 export const TT = {};

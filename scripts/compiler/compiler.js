@@ -1,4 +1,4 @@
-import { TT, Exception, Result } from "./helper.js";
+import { Exception, Result } from "./helper.js";
 import * as Nodes from "./parser.js";
 
 class CompilationError extends Exception {
@@ -30,6 +30,20 @@ export class Xenon124Compiler {
 		this.labelCount = 0;
 		this.symbolTable = {};
 		this.canFoldVars = true;
+		this.resetRegisters();
+	}
+
+	resetRegisters() {
+		this.registers = {
+			AX: null,
+			BX: null,
+			CX: null,
+			DX: null,
+			EX: null,
+			HP: null,
+			SP: null,
+			BP: null,
+		};
 	}
 
 	compile(ast) {
@@ -45,7 +59,6 @@ export class Xenon124Compiler {
 	}
 
 	optimize(node) {
-		console.log(node);
 		if (node instanceof Nodes.BinaryOpNode) {
 			node.left = this.optimize(node.left);
 			node.right = this.optimize(node.right);
@@ -81,6 +94,24 @@ export class Xenon124Compiler {
 							node.endPos,
 							result,
 						);
+			}
+		}
+
+		if (node instanceof Nodes.IncrementNode) {
+			node.value = this.optimize(node.value);
+
+			if (node.value.constructor.name.includes("Literal")) {
+				node.value.value++;
+				return node.value;
+			}
+		}
+
+		if (node instanceof Nodes.DecrementNode) {
+			node.value = this.optimize(node.value);
+
+			if (node.value.constructor.name.includes("Literal")) {
+				node.value.value--;
+				return node.value;
 			}
 		}
 
@@ -134,6 +165,13 @@ export class Xenon124Compiler {
 			default:
 				return 0;
 		}
+	}
+
+	load(reg, value) {
+		if (this.registers[reg] !== value)
+			this.instructions.push(`LDIR ${reg}, ${value}`);
+
+		this.registers[reg] = value;
 	}
 
 	visit(node) {
@@ -201,7 +239,7 @@ export class Xenon124Compiler {
 		if (this.isCurrentlyFMod) this.instructions.push("CMOD int");
 		const value = (Number(node.value) & 0xffff) >>> 0;
 		const hexValue = value.toString(16).toUpperCase();
-		this.instructions.push(`LDIR AX, #${hexValue.padStart(4, "0")}`);
+		this.load("AX", `#${hexValue.padStart(4, "0")}`);
 
 		this.isCurrentlyFMod = false;
 
@@ -212,11 +250,31 @@ export class Xenon124Compiler {
 		if (!this.isCurrentlyFMod) this.instructions.push("CMOD float");
 		const value = this.toFP16(Number(node.value));
 		const hexValue = value.toString(16);
-		this.instructions.push(`LDIR AX, #${hexValue.padStart(4, "0")}`);
+		this.load("AX", `#${hexValue.padStart(4, "0")}`);
 
 		this.isCurrentlyFMod = true;
 
 		return new Result().success(node);
+	}
+
+	visitArrayLiteral(node) {
+		const res = new Result();
+		this.load(
+			"EX",
+			"#" + node.elements.length.toString(16).padStart(4, "0"),
+		);
+		this.instructions.push("STRE @HP, EX");
+		this.instructions.push("MOVE DX, HP");
+		this.instructions.push("INCR HP");
+
+		node.elements.forEach((elem) => {
+			res.register(this.visit(elem));
+			if (res.error) return res;
+			this.instructions.push("STRE @HP, AX");
+			this.instructions.push("INCR HP");
+		});
+
+		return res.success(null);
 	}
 
 	visitIdentifier(node) {
@@ -232,7 +290,7 @@ export class Xenon124Compiler {
 				),
 			);
 
-		this.instructions.push("LDIR BX, $" + node.value);
+		this.load("BX", "$" + node.value);
 		this.instructions.push("LOAD AX, @BX");
 
 		return res.success(null);
@@ -271,6 +329,7 @@ export class Xenon124Compiler {
 			"**": "POW",
 		};
 
+		this.resetRegisters();
 		this.instructions.push(`${opMap[node.op.value]} DX, AX, AX`);
 		return res.success(null);
 	}
@@ -283,14 +342,38 @@ export class Xenon124Compiler {
 		res.register(this.visit(node.value));
 		if (res.error) return res;
 
-		this.instructions.push(`LDIR DX, #0000`);
+		this.resetRegisters();
+		this.load("DX", "#0000");
 		this.instructions.push("SUB DX, AX, AX");
 
 		return res.success(null);
 	}
 
+	visitIncrementNode(node) {
+		const res = new Result();
+
+		res.register(this.visit(node.value));
+		if (res.error) return res;
+
+		this.instructions.push("INCR AX");
+		return res.success(null);
+	}
+
+	visitDecrementNode(node) {
+		const res = new Result();
+
+		res.register(this.visit(node.value));
+		if (res.error) return res;
+
+		this.instructions.push("DECR AX");
+		return res.success(null);
+	}
+
 	visitVarDeclaration(node) {
 		const res = new Result();
+
+		if (node.dimensions > 0) this.instructions.push("MOVE DX, HP");
+		console.log(node.value);
 
 		res.register(this.visit(node.value));
 		if (res.error) return res;
@@ -305,19 +388,38 @@ export class Xenon124Compiler {
 				),
 			);
 
-		this.symbolTable[node.symbol] = {
-			value: node.value,
-			type: node.dataType,
-			size: 1,
-		};
-		this.instructions.push("LDIR BX, $" + node.symbol);
-		this.instructions.push("STRE @BX, AX");
+		if (node.dimensions === 0)
+			this.symbolTable[node.symbol] = {
+				value: node.value,
+				type: node.dataType,
+				size: 1,
+			};
+		else {
+			this.symbolTable[node.symbol] = {
+				value: null,
+				type: "ptr",
+				size: node.value.elements.length,
+			};
+		}
+		this.load("BX", "$" + node.symbol);
+		this.instructions.push(
+			node.dimensions > 0 ? "STRE @BX, DX" : "STRE @BX, AX",
+		);
 
 		return res.success(null);
 	}
 
 	visitAssignment(node) {
 		const res = new Result();
+
+		const opMap = {
+			"+=": "ADD",
+			"-=": "SUB",
+			"*=": "MUL",
+			"/=": "DIV",
+			"%=": "MOD",
+			"**=": "POW",
+		};
 
 		res.register(this.visit(node.value));
 		if (res.error) return res;
@@ -342,12 +444,13 @@ export class Xenon124Compiler {
 				),
 			);
 
-		this.symbolTable[node.symbol] = {
-			value: node.value,
-			type: node.dataType,
-			size: 1,
-		};
-		this.instructions.push("LDIR BX, $" + node.symbol);
+		this.symbolTable[node.symbol].value = node.value;
+		this.load("BX", "$" + node.symbol);
+
+		if (node.op !== "=") {
+			this.instructions.push("LOAD DX, @BX");
+			this.instructions.push(`${opMap[node.op]} DX, AX, AX`);
+		}
 		this.instructions.push("STRE @BX, AX");
 
 		return res.success(null);
@@ -371,11 +474,13 @@ export class Xenon124Compiler {
 		const endLabel = this.labelCount++;
 
 		this.canFoldVars = false;
-		this.instructions.push(`L${startLabel}:`);
+		this.instructions.push(`F${startLabel}:`);
+
+		this.resetRegisters();
 		res.register(this.visit(node.endExpr));
 		if (res.error) return res;
 		this.instructions.push(
-			`JUMP ${endMap[node.endExpr.op.value]}, .L${endLabel}`,
+			`JUMP ${endMap[node.endExpr.op.value]}, .F${endLabel}`,
 		);
 
 		res.register(this.visit(node.body));
@@ -383,10 +488,153 @@ export class Xenon124Compiler {
 
 		res.register(this.visit(node.stepExpr));
 		if (res.error) return res;
-		this.instructions.push(`JUMP AL, .L${startLabel}`);
-		this.instructions.push(`L${endLabel}:`);
+		this.instructions.push(`JUMP AL, .F${startLabel}`);
+		this.instructions.push(`F${endLabel}:`);
 
 		this.canFoldVars = true;
+		this.resetRegisters();
+		return res.success(null);
+	}
+
+	visitWhileLoop(node) {
+		const res = new Result();
+
+		const endMap = {
+			"<": "GE",
+			">": "LE",
+			"==": "NE",
+			"<=": "GT",
+			">=": "LT",
+			"!=": "EQ",
+		};
+
+		const startLabel = this.labelCount++;
+		const endLabel = this.labelCount++;
+
+		this.canFoldVars = false;
+		this.instructions.push(`W${startLabel}:`);
+		this.resetRegisters();
+
+		res.register(this.visit(node.condition));
+		if (res.error) return res;
+
+		this.instructions.push(
+			`JUMP ${endMap[node.condition.op.value]}, .W${endLabel}`,
+		);
+
+		res.register(this.visit(node.body));
+		if (res.error) return res;
+		this.instructions.push(`JUMP AL, .W${startLabel}`);
+		this.instructions.push(`W${endLabel}:`);
+
+		this.canFoldVars = true;
+		this.resetRegisters();
+		return res.success(null);
+	}
+
+	visitIfStatement(node) {
+		const res = new Result();
+
+		const endMap = {
+			"<": "GE",
+			">": "LE",
+			"==": "NE",
+			"<=": "GT",
+			">=": "LT",
+			"!=": "EQ",
+		};
+
+		const endIfLabel = this.labelCount++;
+
+		for (let i = 0; i < node.cases.length; i++) {
+			const _case = node.cases[i];
+			_case.condition = this.optimize(_case.condition);
+
+			if (_case.condition.constructor.name.includes("Literal")) {
+				if (_case.condition.value === 0) continue;
+
+				res.register(this.visit(_case.body));
+				if (res.error) return res;
+				return res.success(null);
+			}
+
+			const nextIfLabel = this.labelCount++;
+
+			res.register(this.visit(_case.condition));
+			if (res.error) return res;
+			if (_case.condition instanceof Nodes.BinaryOpNode)
+				this.instructions.push(
+					`JUMP ${endMap[_case.condition.op.value]}, .I${nextIfLabel}`,
+				);
+			else this.instructions.push(`JUMP EQ, .I${nextIfLabel}`);
+
+			res.register(this.visit(_case.body));
+			if (res.error) return res;
+			this.instructions.push(`JUMP AL, .I${endIfLabel}`);
+			this.instructions.push(`I${nextIfLabel}:`);
+		}
+
+		this.instructions.push(`I${endIfLabel}:`);
+
+		if (node.elseCase) {
+			res.register(this.visit(node.elseCase));
+			if (res.error) return res;
+		}
+
+		return res.success(null);
+	}
+
+	visitArrayAccess(node) {
+		const res = new Result();
+		let indexIsZero = false;
+
+		res.register(this.visit(node.index));
+		if (res.error) return res;
+
+		if (this.instructions.at(-1) === "LDIR AX, #0000") {
+			this.instructions.pop();
+			indexIsZero = true;
+		}
+
+		res.register(this.visit(node.array));
+		if (res.error) return res;
+		this.instructions.pop();
+
+		if (!indexIsZero) this.instructions.push("ADD AX, BX, BX");
+		this.instructions.push("INCR BX");
+		this.instructions.push("LOAD AX, @BX");
+
+		return res.success(null);
+	}
+
+	visitArraySet(node) {
+		const res = new Result();
+
+		const opMap = {
+			"+=": "ADD",
+			"-=": "SUB",
+			"*=": "MUL",
+			"/=": "DIV",
+			"%=": "MOD",
+			"**=": "POW",
+		};
+
+		res.register(this.visit(node.value));
+		if (res.error) return res;
+		this.instructions.push("PUSH AX");
+
+		res.register(this.visit(node.accessor));
+		if (res.error) return res;
+
+		if (node.op === "=") {
+			this.instructions.pop();
+			this.instructions.push("POP @BX");
+		} else {
+			this.instructions.push("POP DX");
+			this.instructions.push(`${opMap[node.op]} DX, AX, AX`);
+			this.instructions.push("STRE @BX, AX");
+		}
+
 		return res.success(null);
 	}
 }

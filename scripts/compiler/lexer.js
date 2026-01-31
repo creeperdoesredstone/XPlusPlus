@@ -29,6 +29,8 @@ export function lex(fn, ftxt) {
 	while (currentChar !== null) {
 		startPos = pos.copy();
 		switch (true) {
+			case currentChar === "\u200B":
+				pos.col--;
 			case currentChar === " ":
 			case currentChar === "\t":
 				advance();
@@ -46,6 +48,16 @@ export function lex(fn, ftxt) {
 			
 			case currentChar === ":":
 				tokens.push(new Token(startPos, startPos, TT.COL));
+				advance();
+				break;
+			
+			case currentChar === ",":
+				tokens.push(new Token(startPos, startPos, TT.COMMA));
+				advance();
+				break;
+			
+			case currentChar === ".":
+				tokens.push(new Token(startPos, startPos, TT.DOT));
 				advance();
 				break;
 
