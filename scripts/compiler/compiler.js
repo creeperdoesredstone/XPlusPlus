@@ -7,17 +7,32 @@ class CompilationError extends Exception {
 	}
 }
 
+function copyObjectWithPrototype(orig) {
+	const copy = Object.create(Object.getPrototypeOf(orig));
+
+	for (const propName of Object.getOwnPropertyNames(orig)) {
+		const descriptor = Object.getOwnPropertyDescriptor(orig, propName);
+		Object.defineProperty(copy, propName, descriptor);
+	}
+
+	return copy;
+}
+
 export class Xenon124Compiler {
 	constructor() {
+		this.init();
+	}
+
+	init() {
 		this.instructions = [];
 		this.isCurrentlyFMod = false;
+		this.isAccessingRAM = true;
+		this.labelCount = 0;
 		this.symbolTable = {};
 	}
 
 	compile(ast) {
-		this.instructions = [];
-		this.isCurrentlyFMod = false;
-		this.symbolTable = {};
+		this.init();
 		const res = new Result();
 
 		res.register(this.visit(ast));
@@ -34,15 +49,21 @@ export class Xenon124Compiler {
 			node.right = this.optimize(node.right);
 
 			if (
-				node.left instanceof Nodes.IntLiteral &&
-				node.right instanceof Nodes.IntLiteral
+				node.left.constructor.name.includes("Literal") &&
+				node.right.constructor.name.includes("Literal")
 			) {
 				const result = this.evaluate(
 					node.left.value,
 					node.op.value,
 					node.right.value,
 				);
-				return new Nodes.IntLiteral(node.startPos, node.endPos, result);
+				return Number.isInteger(result)
+					? new Nodes.IntLiteral(node.startPos, node.endPos, result)
+					: new Nodes.FloatLiteral(
+							node.startPos,
+							node.endPos,
+							result,
+						);
 			}
 		}
 
@@ -58,6 +79,19 @@ export class Xenon124Compiler {
 							node.endPos,
 							result,
 						);
+			}
+		}
+
+		if (node instanceof Nodes.Identifier) {
+			if (this.symbolTable[node.value]?.value) {
+				const value = this.optimize(
+					copyObjectWithPrototype(
+						this.symbolTable[node.value]?.value,
+					),
+				);
+				value.startPos = node.startPos;
+				value.endPos = node.endPos;
+				return value;
 			}
 		}
 		return node;
@@ -87,6 +121,8 @@ export class Xenon124Compiler {
 	}
 
 	visit(node) {
+		if (node === null) return new Result().success(null);
+
 		const optimizedNode = this.optimize(node);
 		const nodeType = optimizedNode.constructor.name;
 		const method = this["visit" + nodeType] ?? this.undefinedVisit;
@@ -167,15 +203,35 @@ export class Xenon124Compiler {
 		return new Result().success(node);
 	}
 
+	visitIdentifier(node) {
+		const res = new Result();
+		if (res.error) return res;
+
+		if (!this.symbolTable[node.value])
+			return res.fail(
+				new Exception(
+					node.startPos,
+					node.endPos,
+					"SymbolError",
+					`Symbol '${node.value}' is undefined.`,
+				),
+			);
+
+		this.instructions.push("LDIR BX, $" + node.value);
+		this.instructions.push("LOAD AX, @BX");
+
+		return res.success(null);
+	}
+
 	visitBinaryOpNode(node) {
 		const res = new Result();
 
-		const left = res.register(this.visit(node.left));
+		res.register(this.visit(node.left));
 		if (res.error) return res;
 		const leftMod = this.isCurrentlyFMod;
 		this.instructions.push("PUSH AX");
 
-		const right = res.register(this.visit(node.right));
+		res.register(this.visit(node.right));
 		if (res.error) return res;
 		const rightMod = this.isCurrentlyFMod;
 		this.instructions.push("POP DX");
@@ -207,6 +263,60 @@ export class Xenon124Compiler {
 
 		this.instructions.push(`LDIR DX, #0000`);
 		this.instructions.push("CALC SUB DX, AX, AX");
+
+		return res.success(null);
+	}
+
+	visitVarDeclaration(node) {
+		const res = new Result();
+
+		res.register(this.visit(node.value));
+		if (res.error) return res;
+
+		if (this.symbolTable[node.symbol])
+			return res.fail(
+				new Exception(
+					node.startPos,
+					node.endPos,
+					"SymbolError",
+					`Symbol '${node.symbol}' is already defined.`,
+				),
+			);
+
+		this.symbolTable[node.symbol] = {
+			value: node.value,
+			type: node.dataType,
+			size: 1,
+		};
+		this.instructions.push("LDIR BX, $" + node.symbol);
+		this.instructions.push("STRE @BX, AX");
+
+		return res.success(null);
+	}
+
+	visitAssignment(node) {
+		const res = new Result();
+
+		res.register(this.visit(node.value));
+		if (res.error) return res;
+
+		if (!this.symbolTable[node.symbol])
+			return res.fail(
+				new Exception(
+					node.startPos,
+					node.endPos,
+					"SymbolError",
+					`Symbol '${node.symbol}' is undefined.`,
+				),
+			);
+
+		this.symbolTable[node.symbol] = {
+			value: node.value,
+			type: node.dataType,
+			size: 1,
+		};
+		this.instructions.push("LDIR BX, $" + node.symbol);
+		this.instructions.push("STRE @BX, AX");
 
 		return res.success(null);
 	}

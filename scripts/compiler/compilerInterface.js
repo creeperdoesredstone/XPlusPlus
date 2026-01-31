@@ -1,5 +1,5 @@
 import { lex } from "./lexer.js";
-import { parse } from "./parser.js";
+import { parse, optimizeAST } from "./parser.js";
 import { Xenon124Compiler } from "./compiler.js";
 import { app, db } from "../sdk.js";
 
@@ -40,7 +40,7 @@ async function exportBuildToFirestore(instructions) {
 
 		printToTerminal(
 			`Build exported: ${outputFileName.replace("_", ".")}`,
-			"success",
+			"asm",
 		);
 		loadFiles(auth.currentUser);
 	} catch (error) {
@@ -58,7 +58,7 @@ function printToTerminal(message, type = "default") {
 	const line = document.createElement("span");
 	line.className = `terminal-line ${type}-msg`;
 
-	const prefix = type === "asm" ? "> " : "  ";
+	const prefix = type === "compiler" ? "Compiler Message: " : "> ";
 	line.innerText = prefix + message;
 	terminalOutput.appendChild(line);
 	terminalOutput.scrollTop = terminalOutput.scrollHeight;
@@ -82,10 +82,14 @@ const run = () => {
 	if (lexResult.error) return lexResult;
 
 	const parseResult = parse(lexResult.value);
-	console.log(parseResult);
 	if (parseResult.error) return parseResult;
 
-	const compileResult = new Xenon124Compiler().compile(parseResult.value);
+	const { ast, prunedVars } = optimizeAST(parseResult.value);
+	prunedVars.forEach((symbol) => {
+		printToTerminal(`Pruned dead symbol: ${symbol}`, "compiler");
+	});
+
+	const compileResult = new Xenon124Compiler().compile(ast);
 	return compileResult;
 };
 
@@ -94,7 +98,11 @@ compileBtn.addEventListener("click", () => {
 	const result = run();
 
 	if (result.error) {
-		printToTerminal("Encountered an error during compilation:\n" + result.error.toString(), "error");
+		printToTerminal(
+			"Encountered an error during compilation:\n" +
+				result.error.toString(),
+			"error",
+		);
 	} else {
 		printToTerminal("Compilation successful!", "success");
 		exportBuildToFirestore(result.value);
