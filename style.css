@@ -15,7 +15,7 @@ body.light {
 	--accent-bg: #f0f2f5;
 	--accent-text: #1a1a1a;
 	--accent-heading: #4800b5;
-	--accent-subheading: #3a31c3;
+	--accent-subheading: #2b66d2;
 
 	--accent-navbar: #ffffff;
 	--accent-navbar2: #e1e4e8;
@@ -60,6 +60,30 @@ nav {
 	justify-content: space-between;
 	align-items: center;
 	margin-bottom: 40px;
+}
+
+.nav-links {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	gap: 60px;
+}
+
+.user-links {
+	flex-direction: column;
+}
+
+.nav-links a {
+	text-decoration: none;
+	color: white;
+	cursor: pointer;
+	opacity: 0.6;
+	transition: 300ms ease;
+}
+
+.nav-links a:hover {
+	opacity: 1;
+	text-decoration: underline;
 }
 
 nav h2 {
