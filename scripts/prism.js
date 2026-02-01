@@ -481,8 +481,8 @@ Prism.languages.xs = {
 		lookbehind: !0,
 	},
 	keyword:
-		/\b(?:var|for|while|if|elseif|else|switch|case|sub|return|import|from|class|break|continue)\b/,
-	namespace: /\b(?:int|float|bool|char|string)\b/,
+		/\b(?:var|for|while|if|elseif|else|switch|case|sub|return|import|from|class|method|attr|self|new)\b/,
+	namespace: /\b(?:int|float|bool|char|string|void)\b/,
 	function: {
 		pattern: /(?!\d)\w+(?=\s*[({])/,
 	},
@@ -502,7 +502,7 @@ Prism.languages.xasm = {
 	number: /(?<=#)[\da-fA-F]+\b/i,
 	keyword:
 		/\bNOOP|HALT|CMOD|SRPR|SREV|SVAL|LDIR|LDIF|PSHI|PUSH|POP|STRI|LODI|ADD|SUB|MUL|DIV|MOD|POW|AND|OR|NOT|XOR|SIN|COS|ASIN|ACOS|ATAN|LERP|MOVE|SWAP|STRE|LOAD|COMP|SHFT|XCHG|INCR|DECR|JUMP|CALL|INTR|IRET|RETN|INPT|OUTP|DISP|SQRT|LOG|ABS|FLOR|CEIL|FMAC|SIGN|ROND|BCLR|BLEN|BDEL|BUPD|STSC|PSSC|SPSC|LPSC|SMEM|RAND|CAST|INTM\b/,
-	"function-name": /\bAX|BX|CX|DX|DP|HP|SP|FR\b/,
+	"function-name": /\bAX|BX|CX|DX|EX|HP|SP|BP\b/,
 	operator: [/\+|\-|\@|#/, { pattern: /(^|[^.])\.\.(?!\.)/, lookbehind: !0 }],
 	punctuation: /[\[\](){},;]|\.+|:+/,
 	namespace: /\bNV|LT|EQ|LE|GT|NE|GE|AL\b/,

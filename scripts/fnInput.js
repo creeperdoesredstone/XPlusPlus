@@ -51,6 +51,8 @@ export async function loadFiles(user) {
 	const fn = urlParams.get("file");
 	const terminalOutput = document.getElementById("terminal-output");
 
+	codeSpace.contentEditable = false;
+
 	if (data && Object.entries(data.projects[pname].files)) {
 		fileList.innerHTML = "";
 
@@ -269,6 +271,25 @@ codeSpace.addEventListener("keydown", (e) => {
 		codeSpace.dispatchEvent(new Event("input"));
 	}
 
+	if (e.key === "Tab") {
+		e.preventDefault();
+
+		const selection = window.getSelection();
+		const range = selection.getRangeAt(0);
+		const tab = document.createTextNode("\t");
+
+		range.deleteContents();
+		range.insertNode(tab);
+
+		range.setStartAfter(tab);
+		range.setEndAfter(tab);
+		range.collapse(false);
+		selection.removeAllRanges();
+		selection.addRange(range);
+
+		codeSpace.dispatchEvent(new Event("input"));
+	}
+
 	if (e.key === "Backspace") {
 		const selection = window.getSelection();
 		if (!selection.rangeCount) return;
@@ -296,6 +317,55 @@ codeSpace.addEventListener("keydown", (e) => {
 				selection.addRange(range);
 
 				codeSpace.dispatchEvent(new Event("input"));
+			}
+		}
+	}
+
+	if (e.key === "ArrowLeft") {
+		const selection = window.getSelection();
+		if (!selection.rangeCount) return;
+
+		const range = selection.getRangeAt(0);
+		const node = range.startContainer;
+		const offset = range.startOffset;
+
+		if (node.nodeType === Node.TEXT_NODE && offset > 0) {
+			if (node.textContent[offset - 1] === "\u200B") {
+				if (offset === 1) {
+					range.setStart(node, 0);
+					range.collapse(true);
+				} else {
+					range.setStart(node, offset - 2);
+					range.collapse(true);
+				}
+
+				e.preventDefault();
+				selection.removeAllRanges();
+				selection.addRange(range);
+			}
+		}
+	}
+
+	if (e.key === "ArrowRight") {
+		const selection = window.getSelection();
+		if (!selection.rangeCount) return;
+
+		const range = selection.getRangeAt(0);
+		const node = range.startContainer;
+		const offset = range.startOffset;
+
+		if (
+			node.nodeType === Node.TEXT_NODE &&
+			offset < node.textContent.length
+		) {
+			if (node.textContent[offset] === "\u200B") {
+				e.preventDefault();
+
+				range.setStart(node, offset + 2);
+				range.collapse(true);
+
+				selection.removeAllRanges();
+				selection.addRange(range);
 			}
 		}
 	}
