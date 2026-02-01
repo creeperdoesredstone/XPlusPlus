@@ -18,6 +18,49 @@ function copyObjectWithPrototype(orig) {
 	return copy;
 }
 
+export class SymbolTable {
+	constructor(parent = undefined) {
+		this.parent = parent;
+		this.symbols = {};
+	}
+
+	define(iden, dataType, offset = 0) {
+		const res = new Result();
+
+		if (this.symbols[iden.value])
+			return res.fail(
+				new Exception(
+					iden.startPos,
+					iden.endPos,
+					"Symbol Error",
+					`Symbol '${iden.value}' is already defined.`,
+				),
+			);
+		this.symbols[iden.value] = {
+			type: dataType,
+			offset: offset,
+		};
+		return res.success(null);
+	}
+
+	get(iden) {
+		console.log(this);
+		const res = new Result();
+		if (iden.value in this.symbols)
+			return res.success(this.symbols[iden.value]);
+		if (this.parent) return this.parent.get(iden);
+
+		return res.fail(
+			new Exception(
+				iden.startPos,
+				iden.endPos,
+				"Symbol Error",
+				`Symbol '${iden.value}' is undefined.`,
+			),
+		);
+	}
+}
+
 export class Xenon124Compiler {
 	constructor() {
 		this.init();
@@ -29,6 +72,7 @@ export class Xenon124Compiler {
 		this.isAccessingRAM = true;
 		this.labelCount = 0;
 		this.symbolTable = {};
+		this.currentScope = this.symbolTable; // global scope
 		this.canFoldVars = true;
 		this.resetRegisters();
 	}
@@ -49,11 +93,19 @@ export class Xenon124Compiler {
 	compile(ast) {
 		this.init();
 		const res = new Result();
+		const symbolTable = new SymbolTable();
 
-		res.register(this.visit(ast));
-		if (res.error) return res;
+		ast.body.forEach((stmt) => {
+			res.register(this.visit(stmt, symbolTable));
+			if (res.error) return res;
+		});
 
 		this.instructions.push("HALT");
+
+		ast.subDefs.forEach((sub) => {
+			res.register(this.visit(sub, symbolTable));
+			if (res.error) return res;
+		});
 
 		return res.success(this.instructions);
 	}
@@ -83,7 +135,10 @@ export class Xenon124Compiler {
 		}
 
 		if (node instanceof Nodes.UnaryOpNode) {
-			if (node.value.constructor.name.includes("Literal")) {
+			if (
+				node.value.constructor.name.includes("Literal") &&
+				"+-".includes(node.op.value)
+			) {
 				const val = Number(node.value.value);
 				const result = node.op.value === "-" ? -val : val;
 
@@ -174,16 +229,16 @@ export class Xenon124Compiler {
 		this.registers[reg] = value;
 	}
 
-	visit(node) {
+	visit(node, symbolTable) {
 		if (node === null) return new Result().success(null);
 
 		const optimizedNode = this.optimize(node);
 		const nodeType = optimizedNode.constructor.name;
 		const method = this["visit" + nodeType] ?? this.undefinedVisit;
-		return method.call(this, optimizedNode);
+		return method.call(this, optimizedNode, symbolTable);
 	}
 
-	undefinedVisit(node) {
+	undefinedVisit(node, symbolTable) {
 		return new Result().fail(
 			new CompilationError(
 				node.startPos,
@@ -224,18 +279,23 @@ export class Xenon124Compiler {
 		return res;
 	}
 
-	visitStatements(node) {
+	visitStatements(node, symbolTable) {
 		const res = new Result();
 
 		node.body.forEach((stmt) => {
-			res.register(this.visit(stmt));
+			res.register(this.visit(stmt, symbolTable));
+			if (res.error) return res;
+		});
+
+		node.subDefs.forEach((sub) => {
+			res.register(this.visit(sub, symbolTable));
 			if (res.error) return res;
 		});
 
 		return res.success(null);
 	}
 
-	visitIntLiteral(node) {
+	visitIntLiteral(node, symbolTable) {
 		if (this.isCurrentlyFMod) this.instructions.push("CMOD int");
 		const value = (Number(node.value) & 0xffff) >>> 0;
 		const hexValue = value.toString(16).toUpperCase();
@@ -246,7 +306,7 @@ export class Xenon124Compiler {
 		return new Result().success(node);
 	}
 
-	visitFloatLiteral(node) {
+	visitFloatLiteral(node, symbolTable) {
 		if (!this.isCurrentlyFMod) this.instructions.push("CMOD float");
 		const value = this.toFP16(Number(node.value));
 		const hexValue = value.toString(16);
@@ -257,7 +317,7 @@ export class Xenon124Compiler {
 		return new Result().success(node);
 	}
 
-	visitArrayLiteral(node) {
+	visitArrayLiteral(node, symbolTable) {
 		const res = new Result();
 		this.load(
 			"EX",
@@ -268,7 +328,7 @@ export class Xenon124Compiler {
 		this.instructions.push("INCR HP");
 
 		node.elements.forEach((elem) => {
-			res.register(this.visit(elem));
+			res.register(this.visit(elem, symbolTable));
 			if (res.error) return res;
 			this.instructions.push("STRE @HP, AX");
 			this.instructions.push("INCR HP");
@@ -277,34 +337,34 @@ export class Xenon124Compiler {
 		return res.success(null);
 	}
 
-	visitIdentifier(node) {
+	visitIdentifier(node, symbolTable) {
 		const res = new Result();
 
-		if (!this.symbolTable[node.value])
-			return res.fail(
-				new Exception(
-					node.startPos,
-					node.endPos,
-					"Symbol Error",
-					`Symbol '${node.value}' is undefined.`,
-				),
-			);
+		const symb = res.register(symbolTable.get(node));
+		if (res.error) return res;
 
-		this.load("BX", "$" + node.value);
-		this.instructions.push("LOAD AX, @BX");
+		if (symb.offset === 0) {
+			// regular variable
+			this.load("BX", "$" + node.value);
+			this.instructions.push("LOAD AX, @BX");
+		} else {
+			this.instructions.push(
+				`LOAD AX, @BP+${symb.offset} ; ${node.value}`,
+			);
+		}
 
 		return res.success(null);
 	}
 
-	visitBinaryOpNode(node) {
+	visitBinaryOpNode(node, symbolTable) {
 		const res = new Result();
 
-		res.register(this.visit(node.left));
+		res.register(this.visit(node.left, symbolTable));
 		if (res.error) return res;
 		const leftMod = this.isCurrentlyFMod;
 		this.instructions.push("PUSH AX");
 
-		res.register(this.visit(node.right));
+		res.register(this.visit(node.right, symbolTable));
 		if (res.error) return res;
 		const rightMod = this.isCurrentlyFMod;
 		this.instructions.push("POP DX");
@@ -334,59 +394,69 @@ export class Xenon124Compiler {
 		return res.success(null);
 	}
 
-	visitUnaryOpNode(node) {
+	visitUnaryOpNode(node, symbolTable) {
 		const res = new Result();
 
 		if (node.op.value === "+") return res.success(null);
 
-		res.register(this.visit(node.value));
+		res.register(this.visit(node.value, symbolTable));
 		if (res.error) return res;
 
-		this.resetRegisters();
-		this.load("DX", "#0000");
-		this.instructions.push("SUB DX, AX, AX");
+		if (node.op.value === "-") {
+			this.load("DX", "#0000");
+			this.instructions.push("SUB DX, AX, AX");
+		} else if (node.op.value === "++") {
+			this.instructions.push("INCR AX");
+			this.instructions.push("STRE @BX, AX");
+		} else if (node.op.value === "--") {
+			this.instructions.push("DECR AX");
+			this.instructions.push("STRE @BX, AX");
+		}
 
 		return res.success(null);
 	}
 
-	visitIncrementNode(node) {
+	visitIncrementNode(node, symbolTable) {
 		const res = new Result();
 
-		res.register(this.visit(node.value));
+		res.register(this.visit(node.value, symbolTable));
 		if (res.error) return res;
 
 		this.instructions.push("INCR AX");
 		return res.success(null);
 	}
 
-	visitDecrementNode(node) {
+	visitDecrementNode(node, symbolTable) {
 		const res = new Result();
 
-		res.register(this.visit(node.value));
+		res.register(this.visit(node.value, symbolTable));
 		if (res.error) return res;
 
 		this.instructions.push("DECR AX");
 		return res.success(null);
 	}
 
-	visitVarDeclaration(node) {
+	visitVarDeclaration(node, symbolTable) {
 		const res = new Result();
 
 		if (node.dimensions > 0) this.instructions.push("MOVE DX, HP");
-		console.log(node.value);
+		console.log(node.symbol);
 
-		res.register(this.visit(node.value));
+		res.register(this.visit(node.value, symbolTable));
 		if (res.error) return res;
 
-		if (this.symbolTable[node.symbol])
-			return res.fail(
-				new Exception(
+		res.register(
+			symbolTable.define(
+				new Nodes.Identifier(
 					node.startPos,
 					node.endPos,
-					"Symbol Error",
-					`Symbol '${node.symbol}' is already defined.`,
+					node.symbol,
+					node.dataType,
 				),
-			);
+				node.dataType,
+			),
+		);
+		if (res.error) return res;
 
 		if (node.dimensions === 0)
 			this.symbolTable[node.symbol] = {
@@ -409,7 +479,7 @@ export class Xenon124Compiler {
 		return res.success(null);
 	}
 
-	visitAssignment(node) {
+	visitAssignment(node, symbolTable) {
 		const res = new Result();
 
 		const opMap = {
@@ -421,18 +491,20 @@ export class Xenon124Compiler {
 			"**=": "POW",
 		};
 
-		res.register(this.visit(node.value));
+		res.register(this.visit(node.value, symbolTable));
 		if (res.error) return res;
 
-		if (!this.symbolTable[node.symbol])
-			return res.fail(
-				new Exception(
+		res.register(
+			symbolTable.get(
+				new Nodes.Identifier(
 					node.startPos,
 					node.endPos,
-					"SymbolError",
-					`Symbol '${node.symbol}' is undefined.`,
+					node.symbol,
+					"any",
 				),
-			);
+			),
+		);
+		if (res.error) return res;
 
 		if (this.symbolTable[node.symbol].type !== node.value.type)
 			return res.fail(
@@ -456,7 +528,7 @@ export class Xenon124Compiler {
 		return res.success(null);
 	}
 
-	visitForLoop(node) {
+	visitForLoop(node, symbolTable) {
 		const endMap = {
 			"<": "GE",
 			">": "LE",
@@ -467,7 +539,7 @@ export class Xenon124Compiler {
 		};
 
 		const res = new Result();
-		res.register(this.visit(node.startExpr));
+		res.register(this.visit(node.startExpr, symbolTable));
 		if (res.error) return res;
 
 		const startLabel = this.labelCount++;
@@ -477,16 +549,16 @@ export class Xenon124Compiler {
 		this.instructions.push(`F${startLabel}:`);
 
 		this.resetRegisters();
-		res.register(this.visit(node.endExpr));
+		res.register(this.visit(node.endExpr, symbolTable));
 		if (res.error) return res;
 		this.instructions.push(
 			`JUMP ${endMap[node.endExpr.op.value]}, .F${endLabel}`,
 		);
 
-		res.register(this.visit(node.body));
+		res.register(this.visit(node.body, symbolTable));
 		if (res.error) return res;
 
-		res.register(this.visit(node.stepExpr));
+		res.register(this.visit(node.stepExpr, symbolTable));
 		if (res.error) return res;
 		this.instructions.push(`JUMP AL, .F${startLabel}`);
 		this.instructions.push(`F${endLabel}:`);
@@ -496,7 +568,7 @@ export class Xenon124Compiler {
 		return res.success(null);
 	}
 
-	visitWhileLoop(node) {
+	visitWhileLoop(node, symbolTable) {
 		const res = new Result();
 
 		const endMap = {
@@ -515,14 +587,14 @@ export class Xenon124Compiler {
 		this.instructions.push(`W${startLabel}:`);
 		this.resetRegisters();
 
-		res.register(this.visit(node.condition));
+		res.register(this.visit(node.condition, symbolTable));
 		if (res.error) return res;
 
 		this.instructions.push(
 			`JUMP ${endMap[node.condition.op.value]}, .W${endLabel}`,
 		);
 
-		res.register(this.visit(node.body));
+		res.register(this.visit(node.body, symbolTable));
 		if (res.error) return res;
 		this.instructions.push(`JUMP AL, .W${startLabel}`);
 		this.instructions.push(`W${endLabel}:`);
@@ -532,7 +604,7 @@ export class Xenon124Compiler {
 		return res.success(null);
 	}
 
-	visitIfStatement(node) {
+	visitIfStatement(node, symbolTable) {
 		const res = new Result();
 
 		const endMap = {
@@ -553,14 +625,14 @@ export class Xenon124Compiler {
 			if (_case.condition.constructor.name.includes("Literal")) {
 				if (_case.condition.value === 0) continue;
 
-				res.register(this.visit(_case.body));
+				res.register(this.visit(_case.body, symbolTable));
 				if (res.error) return res;
 				return res.success(null);
 			}
 
 			const nextIfLabel = this.labelCount++;
 
-			res.register(this.visit(_case.condition));
+			res.register(this.visit(_case.condition, symbolTable));
 			if (res.error) return res;
 			if (_case.condition instanceof Nodes.BinaryOpNode)
 				this.instructions.push(
@@ -568,7 +640,7 @@ export class Xenon124Compiler {
 				);
 			else this.instructions.push(`JUMP EQ, .I${nextIfLabel}`);
 
-			res.register(this.visit(_case.body));
+			res.register(this.visit(_case.body, symbolTable));
 			if (res.error) return res;
 			this.instructions.push(`JUMP AL, .I${endIfLabel}`);
 			this.instructions.push(`I${nextIfLabel}:`);
@@ -577,18 +649,18 @@ export class Xenon124Compiler {
 		this.instructions.push(`I${endIfLabel}:`);
 
 		if (node.elseCase) {
-			res.register(this.visit(node.elseCase));
+			res.register(this.visit(node.elseCase, symbolTable));
 			if (res.error) return res;
 		}
 
 		return res.success(null);
 	}
 
-	visitArrayAccess(node) {
+	visitArrayAccess(node, symbolTable) {
 		const res = new Result();
 		let indexIsZero = false;
 
-		res.register(this.visit(node.index));
+		res.register(this.visit(node.index, symbolTable));
 		if (res.error) return res;
 
 		if (this.instructions.at(-1) === "LDIR AX, #0000") {
@@ -596,7 +668,7 @@ export class Xenon124Compiler {
 			indexIsZero = true;
 		}
 
-		res.register(this.visit(node.array));
+		res.register(this.visit(node.array, symbolTable));
 		if (res.error) return res;
 		this.instructions.pop();
 
@@ -607,7 +679,7 @@ export class Xenon124Compiler {
 		return res.success(null);
 	}
 
-	visitArraySet(node) {
+	visitArraySet(node, symbolTable) {
 		const res = new Result();
 
 		const opMap = {
@@ -619,11 +691,11 @@ export class Xenon124Compiler {
 			"**=": "POW",
 		};
 
-		res.register(this.visit(node.value));
+		res.register(this.visit(node.value, symbolTable));
 		if (res.error) return res;
 		this.instructions.push("PUSH AX");
 
-		res.register(this.visit(node.accessor));
+		res.register(this.visit(node.accessor, symbolTable));
 		if (res.error) return res;
 
 		if (node.op === "=") {
@@ -635,6 +707,53 @@ export class Xenon124Compiler {
 			this.instructions.push("STRE @BX, AX");
 		}
 
+		return res.success(null);
+	}
+
+	visitSubroutineDef(node, symbolTable) {
+		const res = new Result();
+		const subLabel = `sub_${node.name}`;
+
+		if (this.symbolTable[node.symbol])
+			return res.fail(
+				new Exception(
+					node.startPos,
+					node.endPos,
+					"Symbol Error",
+					`Symbol '${node.symbol}' is already defined.`,
+				),
+			);
+
+		const subSymbolTable = new SymbolTable(symbolTable);
+
+		node.params.forEach((param, index) => {
+			subSymbolTable.define(
+				new Nodes.Identifier(
+					node.startPos,
+					node.endPos,
+					param.name,
+					param.type,
+				),
+				param.type,
+				index + 1,
+			);
+		});
+
+		this.instructions.push(`${subLabel}:`);
+		this.resetRegisters();
+		this.canFoldVars = false;
+		this.instructions.push("PUSH BP");
+		this.instructions.push("MOVE BP, SP");
+
+		res.register(this.visit(node.body, subSymbolTable));
+		if (res.error) return res;
+
+		this.instructions.push("MOVE SP, BP");
+		this.instructions.push("POP BP");
+		this.instructions.push("RETN AL");
+
+		this.resetRegisters();
+		this.canFoldVars = true;
 		return res.success(null);
 	}
 }

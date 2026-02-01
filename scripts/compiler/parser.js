@@ -7,10 +7,11 @@ class InvalidSyntax extends Exception {
 }
 
 export class Statements {
-	constructor(startPos, endPos, body) {
+	constructor(startPos, endPos, body, subDefs) {
 		this.startPos = startPos;
 		this.endPos = endPos;
 		this.body = body;
+		this.subDefs = subDefs || [];
 	}
 }
 
@@ -183,10 +184,32 @@ export class ArraySet {
 	}
 }
 
+export class CallNode {
+	constructor(startPos, endPos, caller, args) {
+		this.startPos = startPos;
+		this.endPos = endPos;
+		this.caller = caller;
+		this.args = args;
+	}
+}
+
+export class SubroutineDef {
+	constructor(startPos, endPos, name, params, returnType, body, symbolTable) {
+		this.startPos = startPos;
+		this.endPos = endPos;
+		this.name = name;
+		this.params = params;
+		this.returnType = returnType;
+		this.body = body;
+		this.symbolTable = symbolTable;
+		this.type = "sub";
+	}
+}
+
 export function parse(tokens) {
 	let pos = -1;
 	let currentTok;
-	const symbolTable = new SymbolTable();
+	let symbolTable = new SymbolTable();
 
 	function advance() {
 		pos++;
@@ -212,6 +235,7 @@ export function parse(tokens) {
 	function statements(terminate = undefined) {
 		const res = new Result();
 		const stmts = [];
+		const subDefs = [];
 		const startPos = currentTok.startPos.copy();
 
 		while (currentTok.type === TT.NEWL) advance();
@@ -226,7 +250,7 @@ export function parse(tokens) {
 
 		let stmt = res.register(statement());
 		if (res.error) return res;
-		stmts.push(stmt);
+		stmt instanceof SubroutineDef ? subDefs.push(stmt) : stmts.push(stmt);
 
 		let newlineCount;
 		let moreStatements = true;
@@ -255,12 +279,17 @@ export function parse(tokens) {
 				moreStatements = false;
 				continue;
 			}
-			stmts.push(stmt);
+			stmt instanceof SubroutineDef
+				? subDefs.push(stmt)
+				: stmts.push(stmt);
 		}
 
 		if (res.error) return res;
+		console.log(subDefs);
 
-		return res.success(new Statements(startPos, stmt.endPos, stmts));
+		return res.success(
+			new Statements(startPos, stmt.endPos, stmts, subDefs),
+		);
 	}
 
 	function statement() {
@@ -274,6 +303,8 @@ export function parse(tokens) {
 					return whileLoop();
 				case "if":
 					return ifStatement();
+				case "sub":
+					return subroutineDef();
 			}
 		}
 		return expr();
@@ -676,6 +707,139 @@ export function parse(tokens) {
 		return res.success(new IfStatement(startPos, endPos, cases, elseCase));
 	}
 
+	function subroutineDef() {
+		const res = new Result();
+		const startPos = currentTok.startPos.copy();
+		advance();
+
+		if (currentTok.type !== TT.IDENT)
+			return res.fail(
+				new InvalidSyntax(
+					currentTok.startPos,
+					currentTok.endPos,
+					"Expected an identifier after 'sub'.",
+				),
+			);
+		const name = currentTok.value;
+		advance();
+
+		if (currentTok.type !== TT.LPAREN)
+			return res.fail(
+				new InvalidSyntax(
+					currentTok.startPos,
+					currentTok.endPos,
+					"Expected '(' after subroutine name.",
+				),
+			);
+		advance();
+
+		const parameters = [];
+		if (currentTok.type !== TT.RPAREN) {
+			while (true) {
+				// EXPECT TYPE (int, float, etc.)
+				if (!dataTypes.includes(currentTok.value)) {
+					return res.fail(
+						new InvalidSyntax(
+							currentTok.startPos,
+							currentTok.endPos,
+							"Expected data type for parameter",
+						),
+					);
+				}
+				const paramType = currentTok.value;
+				advance();
+
+				// EXPECT NAME
+				if (currentTok.type !== TT.IDENT) {
+					return res.fail(
+						new InvalidSyntax(
+							currentTok.startPos,
+							currentTok.endPos,
+							"Expected parameter name",
+						),
+					);
+				}
+				const paramName = currentTok.value;
+				parameters.push({ type: paramType, name: paramName });
+
+				advance();
+
+				if (currentTok.type === TT.RPAREN) break;
+				if (currentTok.type !== TT.COMMA) {
+					return res.fail(
+						new InvalidSyntax(
+							currentTok.startPos,
+							currentTok.endPos,
+							"Expected ',' or ')'",
+						),
+					);
+				}
+				advance();
+			}
+		}
+
+		advance();
+
+		if (
+			currentTok.type !== TT.KEYW ||
+			!dataTypes.includes(currentTok.value)
+		)
+			return res.fail(
+				new InvalidSyntax(
+					currentTok.startPos,
+					currentTok.endPos,
+					"Expected a data type after ')'.",
+				),
+			);
+		const returnType = currentTok.value;
+		advance();
+
+		if (currentTok.type !== TT.LBRACE)
+			return res.fail(
+				new InvalidSyntax(
+					currentTok.startPos,
+					currentTok.endPos,
+					"Expected '{' after subroutine initialization.",
+				),
+			);
+		advance();
+
+		symbolTable.define(name, "ptr", 1);
+
+		const parentSymTable = symbolTable;
+		symbolTable = new SymbolTable(parentSymTable);
+
+		parameters.forEach((param) => {
+			symbolTable.define(param.name, param.type, 1);
+		});
+
+		const body = res.register(statements(TT.RBRACE));
+		if (res.error) return res;
+
+		if (currentTok.type !== TT.RBRACE)
+			return res.fail(
+				new InvalidSyntax(
+					currentTok.startPos,
+					currentTok.endPos,
+					"Expected '}' after subroutine body.",
+				),
+			);
+		advance();
+		const endPos = currentTok.endPos.copy();
+
+		const node = new SubroutineDef(
+			startPos,
+			endPos,
+			name,
+			parameters,
+			returnType,
+			body,
+			symbolTable,
+		);
+		symbolTable = parentSymTable;
+		return res.success(node);
+	}
+
 	function binaryOp(ops, fLeft, fRight = undefined) {
 		if (!fRight) fRight = fLeft;
 		const res = new Result();
@@ -759,7 +923,7 @@ export function parse(tokens) {
 	function unary() {
 		const res = new Result();
 
-		if (currentTok.type === TT.OP && "+-".includes(currentTok.value)) {
+		if (currentTok.type === TT.OP && "+-!".includes(currentTok.value)) {
 			const op = currentTok;
 			advance();
 
@@ -770,7 +934,31 @@ export function parse(tokens) {
 				new UnaryOpNode(op.startPos, value.endPos, op, value),
 			);
 		}
-		return power();
+
+		let node = res.register(power());
+		if (res.error) return res;
+
+		if (
+			currentTok.matches(TT.OP, "++") ||
+			currentTok.matches(TT.OP, "--")
+		) {
+			if (!(node instanceof Identifier)) {
+				return res.fail(
+					new InvalidSyntax(
+						currentTok.startPos,
+						currentTok.endPos,
+						"Target of postfix operator must be an identifier.",
+					),
+				);
+			}
+
+			const op = currentTok;
+			advance();
+
+			node = new UnaryOpNode(node.startPos, op.endPos, op, node);
+		}
+
+		return res.success(node);
 	}
 
 	function power() {
@@ -835,7 +1023,7 @@ export function parse(tokens) {
 				new FloatLiteral(tok.startPos, tok.endPos, Number(tok.value)),
 			);
 		if (tok.type === TT.IDENT) {
-			if (!symbolTable.symbols.has(tok.value))
+			if (!symbolTable.getSymbol(tok.value))
 				return res.fail(
 					new Exception(
 						tok.startPos,
@@ -849,7 +1037,7 @@ export function parse(tokens) {
 					tok.startPos,
 					tok.endPos,
 					tok.value,
-					symbolTable.symbols.get(tok.value).dataType,
+					symbolTable.getSymbol(tok.value).dataType,
 				),
 			);
 		}
@@ -937,8 +1125,9 @@ class Symbol {
 }
 
 export class SymbolTable {
-	constructor() {
+	constructor(parent = undefined) {
 		this.symbols = new Map();
+		this.parent = parent;
 		this.nextAddress = 0x0000;
 	}
 
@@ -949,8 +1138,15 @@ export class SymbolTable {
 		return symbol;
 	}
 
-	lookup(name) {
+	getSymbol(name) {
 		const symbol = this.symbols.get(name);
+		if (symbol) return symbol;
+		if (this.parent) return this.parent.getSymbol(name);
+		return null;
+	}
+
+	lookup(name) {
+		const symbol = this.getSymbol(name);
 		if (symbol) symbol.useCount++;
 		return symbol;
 	}
@@ -1024,7 +1220,7 @@ export class ASTTransformer {
 		}
 		if (node instanceof Assignment) {
 			node.value = this.transform(node.value);
-			return node;
+			return this.optimizeAssignment(node);
 		}
 		if (node instanceof ForLoop) {
 			node.startExpr = this.transform(node.startExpr);
@@ -1091,6 +1287,18 @@ export class ASTTransformer {
 
 		return node;
 	}
+
+	optimizeAssignment(node) {
+		// x = x (WHY?)
+		if (
+			node.value instanceof Identifier &&
+			node.value.value === node.symbol &&
+			node.op === "="
+		)
+			return null;
+
+		return node;
+	}
 }
 
 function analyzeLiveness(node, symbolTable) {
@@ -1109,7 +1317,8 @@ function analyzeLiveness(node, symbolTable) {
 		analyzeLiveness(node.value, symbolTable);
 	} else if (node instanceof Assignment) {
 		const sym = symbolTable.lookup(node.symbol);
-		if (!sym) throw new Error(`Undefined variable: ${node.value}`);
+		if (!sym) throw new Error(`Undefined variable: ${node.symbol}`);
+		analyzeLiveness(node.value, symbolTable);
 	} else if (node instanceof IncrementNode || node instanceof DecrementNode) {
 		analyzeLiveness(node.value, symbolTable);
 	} else if (node instanceof ForLoop) {
@@ -1133,6 +1342,9 @@ function analyzeLiveness(node, symbolTable) {
 		analyzeLiveness(node.index, symbolTable);
 	} else if (node instanceof ArraySet) {
 		analyzeLiveness(node.accessor, symbolTable);
+	} else if (node instanceof SubroutineDef) {
+		symbolTable.define(node.name, node.type);
+		analyzeLiveness(node.body, node.symbolTable);
 	}
 }
 

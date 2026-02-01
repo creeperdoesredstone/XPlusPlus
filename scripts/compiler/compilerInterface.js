@@ -97,12 +97,12 @@ const run = () => {
 	const parseResult = parse(lexResult.value);
 	if (parseResult.error) return parseResult;
 
+	console.log(parseResult.value);
+
 	const { ast, compilerActions } = optimizeAST(parseResult.value);
 	compilerActions.forEach((action) => {
 		logCompilerAction(action.type, action.subsystem, action.message);
 	});
-
-	console.log(ast);
 
 	const compileResult = new Xenon124Compiler().compile(ast);
 	return compileResult;

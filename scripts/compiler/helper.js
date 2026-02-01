@@ -19,7 +19,7 @@ const tokenTypes = [
 	"RSQUARE",
 ];
 
-export const dataTypes = ["int", "float"];
+export const dataTypes = ["int", "float", "void"];
 export const keywords = [
 	"var",
 	"for",
