@@ -72,7 +72,13 @@ X++ is a compiled programming language developed by [@creeperdoesredstone](https
   STRE @BX, AX
   ```
 
-  A variable's value can also be incremented or decremented using the postfix `++` or `--` operators, respectively.
+  A variable's value can also be incremented or decremented using the postfix `++` or `--` operators, respectively:
+
+  ```js
+  x++
+  x--
+  ```
+  
   In this case, the compiler would return:
   ```asm
   ; assume the result of the expression is in AX
