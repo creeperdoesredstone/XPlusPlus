@@ -22,6 +22,7 @@ main {
 	display: flex;
 	flex-direction: column;
 	gap: 15px;
+	overflow-y: auto;
 }
 
 .icon-xasm {
@@ -85,7 +86,6 @@ main {
 	list-style: none;
 	display: flex;
 	flex-direction: column;
-	gap: 5px;
 }
 
 #editor {
@@ -115,6 +115,20 @@ main {
 
 	max-width: 100%;
 	box-sizing: border-box;
+	tab-size: 4;
+}
+
+#codespace {
+    white-space: pre-wrap;
+    word-break: break-all;
+
+	-webkit-user-modify: read-write-plaintext-only;
+}
+
+#codespace br {
+    display: block;
+    content: "";
+    margin-top: 0;
 }
 
 #codespace::-webkit-scrollbar {
@@ -159,7 +173,7 @@ main {
 }
 
 .file-blob i {
-	color: var(--accent-subheading);
+	color: #1d97e0;
 	font-size: 1.1rem;
 }
 
@@ -200,6 +214,7 @@ main {
 .terminal-header {
 	background-color: var(--accent-navbar2);
 	padding: 5px 15px;
+	flex-shrink: 0;
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
