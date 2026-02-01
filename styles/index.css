@@ -1,3 +1,14 @@
+.nav-links {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	gap: 60px;
+}
+
+.user-links {
+	flex-direction: column;
+}
+
 #btn-login {
 	background: transparent;
 	color: var(--accent-subheading);
