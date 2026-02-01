@@ -112,7 +112,7 @@ STRE @BX, AX
 </details>
 
 <details>
-<summary>For Loops</summary>
+<summary>For loops</summary>
 
 For loops are used when you know exactly how many times you want to iterate a block of code.
 They have the following syntax:
@@ -135,7 +135,7 @@ for (var i: int = 0; i < 5; i++) {}
 
 ```
 
-would result in the following assembly (comments are added for ease of reading):
+would result in the following assembly (comments are added for readability):
 
 ```asm
 LDIR AX, #0000
@@ -151,9 +151,59 @@ COMP DX, AX
 JUMP GE, .F1 ; if i >= 5, exit the loop
 LOAD AX, @BX
 INCR AX
-STRE @BX, AX
-JUMP AL, .F0 ; i++
+STRE @BX, AX ; i++
+JUMP AL, .F0 ; jump back to end expression (i < 5)
 F1: ; end loop
+HALT
+
+```
+
+</details>
+
+<details>
+<summary>While loops</summary>
+
+While loops are used when you want to iterate a block of code while a specified condition is met.
+They have the following syntax:
+
+```js
+while (condition) {
+  // body
+}
+
+```
+
+* **The condition** is executed every time before the code block runs.
+* If the condition is false, the loop exits.
+* Else, the code block runs and jumps back to the condition.
+
+For example, this program
+
+```nim
+var i: int = 0
+while (i < 10) { i++ }
+
+```
+
+would result in the following assembly (comments are added for readability):
+
+```asm
+LDIR AX, #0000
+LDIR BX, $i
+STRE @BX, AX ; var i: int = 0
+W0: ; begin loop
+LDIR BX, $i
+LOAD AX, @BX
+PUSH AX
+LDIR AX, #000A
+POP DX
+COMP DX, AX
+JUMP GE, .W1 ; if i >= 10, exit the loop
+LOAD AX, @BX
+INCR AX
+STRE @BX, AX ; i++
+JUMP AL, .W0 ; jump back to condition (i < 10)
+W1: ; end loop
 HALT
 
 ```
