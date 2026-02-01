@@ -29,10 +29,22 @@
 		<nav>
 			<h2>XenonOS</h2>
 			<div class="nav-links">
-				<p id="username"></p>
-				<button type="button" id="btn-login" title="Login with Google">
-					<i class="fa-brands fa-google"></i> Login
-				</button>
+				<a
+					href="https://github.com/creeperdoesredstone/XPlusPlus/blob/main/README.md"
+					target="_blank"
+					rel="noopener"
+					>Docs</a
+				>
+				<div class="user-links">
+					<p id="username"></p>
+					<button
+						type="button"
+						id="btn-login"
+						title="Login with Google"
+					>
+						<i class="fa-brands fa-google"></i> Login
+					</button>
+				</div>
 			</div>
 		</nav>
 
@@ -89,6 +101,11 @@
 		</button>
 
 		<script>
+			if (!localStorage.getItem("theme"))
+				localStorage.setItem("theme", "dark");
+			if (!localStorage.getItem("vm"))
+				localStorage.setItem("vm", "xenon-124");
+
 			localStorage.removeItem("terminal-msg");
 		</script>
 		<script src="scripts/toggleTheme.js"></script>
