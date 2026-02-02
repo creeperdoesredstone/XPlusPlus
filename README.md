@@ -209,3 +209,17 @@ HALT
 ```
 
 </details>
+
+<details>
+<summary>Subroutines</summary>
+
+Currently, X++ only supports `void` subroutines (a.k.a procedures, subroutines with no `return` statement).
+
+The syntax of a subroutine is as follows:
+
+```nim
+sub name(type param1, type param2, ...) void {
+  // body
+}
+```
+</details>
