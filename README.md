@@ -217,7 +217,7 @@ Currently, X++ only supports `void` subroutines (a.k.a procedures, subroutines w
 
 The syntax of a subroutine is as follows:
 
-```nim
+```perl
 sub name(type param1, type param2, ...) void {
   // body
 }
