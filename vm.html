@@ -3,7 +3,7 @@
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<title>Workspace</title>
+		<title>NeonVM</title>
 
 		<link rel="preconnect" href="https://fonts.googleapis.com" />
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -23,6 +23,7 @@
 
 		<link rel="stylesheet" href="style.css" />
 		<link rel="stylesheet" href="styles/compiler.css" />
+		<link rel="stylesheet" href="styles/vm.css" />
 		<link rel="stylesheet" href="styles/prism.css" />
 		<link rel="icon" type="image/x-icon" href="xenon_atom.png" />
 	</head>
@@ -37,7 +38,11 @@
 		</nav>
 
 		<header>
-			<h1 id="title-main">Workspace</h1>
+			<h1 id="title-main">NeonVM</h1>
+			<p>
+				NeonVM is a version of the Xenon-124 VM with limited
+				capabilities.
+			</p>
 		</header>
 
 		<hr />
@@ -52,28 +57,50 @@
 			</div>
 			<div id="editor">
 				<div id="buttons">
-					<button type="button" title="Compile" id="btn-compile">
-						<i class="fa-solid fa-gears"></i> Compile
+					<button type="button" title="Run" id="btn-run">
+						<i class="fa-solid fa-play"></i> Run
 					</button>
-					<button type="button" title="Assemble" id="btn-assemble">
-						<i class="fa-solid fa-gears"></i> Assemble
-					</button>
-					<button type="button" title="VM" id="btn-vm">
-						<i class="fa-solid fa-computer"></i> VM
+					<button type="button" title="Compiler" id="btn-compiler">
+						<i class="fa-solid fa-gears"></i> Compiler
 					</button>
 				</div>
-				<div id="codespace"></div>
-
-				<div id="terminal">
-					<div class="terminal-header">
-						<span
-							><i class="fa-solid fa-terminal"></i> Terminal</span
-						>
-						<button id="btn-clear-terminal" type="button">
-							Clear
-						</button>
+				<div>
+					<div class="register-container">
+						<div class="register">
+							<p class="reg-name">AX</p>
+							<p class="reg-value" id="reg-AX">0</p>
+						</div>
+						<div class="register">
+							<p class="reg-name">BX</p>
+							<p class="reg-value" id="reg-BX">0</p>
+						</div>
+						<div class="register">
+							<p class="reg-name">CX</p>
+							<p class="reg-value" id="reg-CX">0</p>
+						</div>
+						<div class="register">
+							<p class="reg-name">DX</p>
+							<p class="reg-value" id="reg-DX">0</p>
+						</div>
 					</div>
-					<div id="terminal-output"></div>
+					<div class="register-container">
+						<div class="register secondary">
+							<p class="reg-name">EX</p>
+							<p class="reg-value" id="reg-EX">0</p>
+						</div>
+						<div class="register secondary">
+							<p class="reg-name">HP</p>
+							<p class="reg-value" id="reg-HP">0</p>
+						</div>
+						<div class="register secondary">
+							<p class="reg-name">SP</p>
+							<p class="reg-value" id="reg-SP">0</p>
+						</div>
+						<div class="register secondary">
+							<p class="reg-name">BP</p>
+							<p class="reg-value" id="reg-BP">0</p>
+						</div>
+					</div>
 				</div>
 			</div>
 		</main>
@@ -82,33 +109,16 @@
 			<i class="fa-solid fa-circle-half-stroke"></i>
 		</button>
 
+		<script src="scripts/toggleTheme.js"></script>
 		<script>
 			const urlParams = new URLSearchParams(window.location.search);
-			const fn = urlParams.get("file")?.replace("_", ".") || "";
-			const compileBtn = document.querySelector("#btn-compile");
-			const assembleBtn = document.querySelector("#btn-assemble");
-
-			compileBtn.disabled = !fn.endsWith(".xs");
-			assembleBtn.disabled = !fn.endsWith(".xasm");
-		</script>
-
-		<script src="scripts/toggleTheme.js"></script>
-		<script src="scripts/prism.js"></script>
-		<script src="scripts/fnInput.js" type="module"></script>
-		<script
-			src="scripts/compiler/compilerInterface.js"
-			type="module"
-		></script>
-		<script
-			src="scripts/compiler/assemblerInterface.js"
-			type="module"
-		></script>
-		<script>
 			const project = urlParams.get("project") || "";
 
-			document.querySelector("#btn-vm").addEventListener("click", () => {
-				window.location.href = `vm.html?project=${project}`;
-			});
+			document
+				.querySelector("#btn-compiler")
+				.addEventListener("click", () => {
+					window.location.href = `compiler.html?project=${project}`;
+				});
 		</script>
 	</body>
 </html>

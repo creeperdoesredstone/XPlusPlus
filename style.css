@@ -8,6 +8,13 @@
 	--accent-navbar2: #0d1117;
 	--card-border: rgba(255, 255, 255, 0.1);
 
+	--accent-regname: #69c8ff;
+	--accent-register: #1d97e0;
+	--accent-regvalue: #005d93;
+	--accent-regname-secondary: #ffd684;
+	--accent-register-secondary: #e09f1d;
+	--accent-regvalue-secondary: #b26200;
+
 	--font-main: "Fira Code", "JetBrains Mono", monospace;
 }
 
@@ -20,6 +27,13 @@ body.light {
 	--accent-navbar: #ffffff;
 	--accent-navbar2: #e1e4e8;
 	--card-border: rgba(0, 0, 0, 0.1);
+
+	--accent-regname: #5b19bf;
+	--accent-register: #ab74ff;
+	--accent-regvalue: #c39bff;
+	--accent-regvalue-secondary: #ffd684;
+	--accent-register-secondary: #e09f1d;
+	--accent-regname-secondary: #b26200;
 }
 
 * {
