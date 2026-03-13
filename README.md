@@ -219,7 +219,7 @@ The syntax of a subroutine is as follows:
 
 ```perl
 sub name(type param1, type param2, ...) void {
-  // body
+  ...
 }
 ```
 </details>
