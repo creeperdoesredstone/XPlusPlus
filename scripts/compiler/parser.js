@@ -190,6 +190,7 @@ export class CallNode {
 		this.endPos = endPos;
 		this.caller = caller;
 		this.args = args;
+		this.symbol = caller.value ?? caller.symbol;
 	}
 }
 
@@ -203,6 +204,14 @@ export class SubroutineDef {
 		this.body = body;
 		this.symbolTable = symbolTable;
 		this.type = "sub";
+	}
+}
+
+export class ReturnNode {
+	constructor(startPos, endPos, value) {
+		this.startPos = startPos;
+		this.endPos = endPos;
+		this.value = value;
 	}
 }
 
@@ -305,6 +314,8 @@ export function parse(tokens) {
 					return ifStatement();
 				case "sub":
 					return subroutineDef();
+				case "return":
+					return returnStatement();
 			}
 		}
 		return expr();
@@ -840,6 +851,23 @@ export function parse(tokens) {
 		return res.success(node);
 	}
 
+	function returnStatement() {
+		const res = new Result();
+		const startPos = currentTok.startPos.copy();
+		let endPos = currentTok.endPos.copy();
+		advance();
+
+		let value = null;
+
+		if (![TT.NEWL, TT.EOF, TT.RBRACE].includes(currentTok.type)) {
+			value = res.register(expr());
+			if (res.error) return res;
+			endPos = value.endPos.copy();
+		}
+
+		return res.success(new ReturnNode(startPos, endPos, value));
+	}
+
 	function binaryOp(ops, fLeft, fRight = undefined) {
 		if (!fRight) fRight = fLeft;
 		const res = new Result();
@@ -970,43 +998,95 @@ export function parse(tokens) {
 		let leftVal = res.register(literal());
 		if (res.error) return res;
 
-		while (currentTok.type === TT.LSQUARE) {
+		let tok;
+
+		while (
+			currentTok.type === TT.LSQUARE ||
+			currentTok.type === TT.LPAREN
+		) {
+			tok = currentTok;
+
 			if (
 				!(
 					leftVal instanceof ArrayAccess ||
 					leftVal instanceof ArrayLiteral ||
-					leftVal instanceof Identifier
+					leftVal instanceof Identifier ||
+					leftVal instanceof CallNode
 				)
 			)
 				return res.fail(
 					new InvalidSyntax(
 						leftVal.startPos,
 						leftVal.endPos,
-						"Only an array can be accessed.",
+						tok.type === TT.LSQUARE
+							? "Only an array can be accessed."
+							: "Only a subroutine can be called.",
 					),
 				);
 
 			advance();
-			const index = res.register(expr());
-			if (res.error) return res;
 
-			if (currentTok.type !== TT.RSQUARE)
-				return res.fail(
-					new InvalidSyntax(
-						currentTok.startPos,
-						currentTok.endPos,
-						"Expected ']' after index.",
-					),
+			if (tok.type === TT.LSQUARE) {
+				const index = res.register(expr());
+				if (res.error) return res;
+
+				if (currentTok.type !== TT.RSQUARE)
+					return res.fail(
+						new InvalidSyntax(
+							currentTok.startPos,
+							currentTok.endPos,
+							"Expected ']' after index.",
+						),
+					);
+				leftVal = new ArrayAccess(
+					leftVal.startPos,
+					currentTok.endPos,
+					leftVal,
+					index,
 				);
-			leftVal = new ArrayAccess(
-				leftVal.startPos,
-				currentTok.endPos,
-				leftVal,
-				index,
-			);
+			} else {
+				const args = res.register(getArgs());
+				if (res.error) return res;
+
+				leftVal = new CallNode(
+					leftVal.startPos,
+					currentTok.endPos,
+					leftVal,
+					args,
+				);
+			}
 			advance();
 		}
 		return res.success(leftVal);
+	}
+
+	function getArgs() {
+		const res = new Result();
+		const args = [];
+
+		if (currentTok.type === TT.RPAREN) return res.success(args);
+
+		let arg = res.register(expr());
+		if (res.error) return res;
+		args.push(arg);
+
+		while (currentTok.type === TT.COMMA) {
+			advance();
+			arg = res.register(expr());
+			if (res.error) return res;
+			args.push(arg);
+		}
+
+		if (currentTok.type !== TT.RPAREN)
+			return res.fail(
+				new InvalidSyntax(
+					currentTok.startPos,
+					currentTok.endPos,
+					"Expected ',' or ')'.",
+				),
+			);
+
+		return res.success(args);
 	}
 
 	function literal() {

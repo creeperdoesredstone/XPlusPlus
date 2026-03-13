@@ -27,16 +27,8 @@ export class SymbolTable {
 	define(iden, dataType, offset = 0) {
 		const res = new Result();
 
-		if (this.symbols[iden.value])
-			return res.fail(
-				new Exception(
-					iden.startPos,
-					iden.endPos,
-					"Symbol Error",
-					`Symbol '${iden.value}' is already defined.`,
-				),
-			);
 		this.symbols[iden.value] = {
+			value: null,
 			type: dataType,
 			offset: offset,
 		};
@@ -44,11 +36,10 @@ export class SymbolTable {
 	}
 
 	get(iden) {
-		console.log(this);
 		const res = new Result();
 		if (iden.value in this.symbols)
 			return res.success(this.symbols[iden.value]);
-		if (this.parent) return this.parent.get(iden);
+		if (this.parent) return this.parent.get(iden.value);
 
 		return res.fail(
 			new Exception(
@@ -58,6 +49,14 @@ export class SymbolTable {
 				`Symbol '${iden.value}' is undefined.`,
 			),
 		);
+	}
+
+	assign(iden, value) {
+		this.symbols[iden].value = value;
+	}
+
+	invalidate(iden) {
+		if (this.symbols[iden]) this.symbols[iden].value = null;
 	}
 }
 
@@ -71,8 +70,6 @@ export class Xenon124Compiler {
 		this.isCurrentlyFMod = false;
 		this.isAccessingRAM = true;
 		this.labelCount = 0;
-		this.symbolTable = {};
-		this.currentScope = this.symbolTable; // global scope
 		this.canFoldVars = true;
 		this.resetRegisters();
 	}
@@ -110,10 +107,10 @@ export class Xenon124Compiler {
 		return res.success(this.instructions);
 	}
 
-	optimize(node) {
+	optimize(node, symbolTable) {
 		if (node instanceof Nodes.BinaryOpNode) {
-			node.left = this.optimize(node.left);
-			node.right = this.optimize(node.right);
+			node.left = this.optimize(node.left, symbolTable);
+			node.right = this.optimize(node.right, symbolTable);
 
 			if (
 				node.left.constructor.name.includes("Literal") &&
@@ -125,7 +122,11 @@ export class Xenon124Compiler {
 					node.right.value,
 				);
 				return Number.isInteger(result)
-					? new Nodes.IntLiteral(node.startPos, node.endPos, result)
+					? new Nodes.IntLiteral(
+							node.startPos,
+							node.endPos,
+							Math.floor(result),
+						)
 					: new Nodes.FloatLiteral(
 							node.startPos,
 							node.endPos,
@@ -153,7 +154,7 @@ export class Xenon124Compiler {
 		}
 
 		if (node instanceof Nodes.IncrementNode) {
-			node.value = this.optimize(node.value);
+			node.value = this.optimize(node.value, symbolTable);
 
 			if (node.value.constructor.name.includes("Literal")) {
 				node.value.value++;
@@ -162,7 +163,7 @@ export class Xenon124Compiler {
 		}
 
 		if (node instanceof Nodes.DecrementNode) {
-			node.value = this.optimize(node.value);
+			node.value = this.optimize(node.value, symbolTable);
 
 			if (node.value.constructor.name.includes("Literal")) {
 				node.value.value--;
@@ -171,7 +172,7 @@ export class Xenon124Compiler {
 		}
 
 		if (node instanceof Nodes.Identifier) {
-			const symbol = this.symbolTable[node.value];
+			const symbol = symbolTable.get(node).value;
 			// Only fold if it's a known constant literal
 			if (
 				this.canFoldVars &&
@@ -229,10 +230,50 @@ export class Xenon124Compiler {
 		this.registers[reg] = value;
 	}
 
+	getModifiedVariables(node) {
+		const modified = new Set();
+
+		const walk = (n) => {
+			if (!n) return;
+
+			if (n instanceof Nodes.Assignment) {
+				modified.add(n.symbol);
+			}
+
+			if (
+				(n instanceof Nodes.IncrementNode ||
+					n instanceof Nodes.DecrementNode) &&
+				n.value instanceof Nodes.Identifier
+			) {
+				modified.add(n.value.value);
+			}
+
+			if (
+				n instanceof Nodes.ForLoop &&
+				n.startExpr instanceof Nodes.VarDeclaration
+			) {
+				modified.add(n.startExpr.symbol);
+			}
+
+			const children =
+				n.body ||
+				n.cases ||
+				[n.left, n.right, n.value, n.condition].filter(Boolean);
+			if (Array.isArray(children)) {
+				children.forEach(walk);
+			} else if (children && typeof children === "object") {
+				Object.values(children).forEach(walk);
+			}
+		};
+
+		walk(node);
+		return Array.from(modified);
+	}
+
 	visit(node, symbolTable) {
 		if (node === null) return new Result().success(null);
 
-		const optimizedNode = this.optimize(node);
+		const optimizedNode = this.optimize(node, symbolTable);
 		const nodeType = optimizedNode.constructor.name;
 		const method = this["visit" + nodeType] ?? this.undefinedVisit;
 		return method.call(this, optimizedNode, symbolTable);
@@ -374,9 +415,18 @@ export class Xenon124Compiler {
 		}
 
 		const cmpOp = ["<", "<=", ">", ">=", "==", "!="];
+		const cmpOpMap = {
+			"<": "LT",
+			"<=": "LE",
+			">": "GT",
+			">=": "GE",
+			"==": "EQ",
+			"!=": "NE",
+		};
 
 		if (cmpOp.includes(node.op.value)) {
 			this.instructions.push("COMP DX, AX");
+			this.instructions.push(`BOOL ${cmpOpMap[node.op.value]}, AX`);
 			return res.success(null);
 		}
 
@@ -440,7 +490,8 @@ export class Xenon124Compiler {
 		const res = new Result();
 
 		if (node.dimensions > 0) this.instructions.push("MOVE DX, HP");
-		console.log(node.symbol);
+
+		this.instructions.push("$x");
 
 		res.register(this.visit(node.value, symbolTable));
 		if (res.error) return res;
@@ -458,19 +509,14 @@ export class Xenon124Compiler {
 		);
 		if (res.error) return res;
 
-		if (node.dimensions === 0)
-			this.symbolTable[node.symbol] = {
-				value: node.value,
-				type: node.dataType,
-				size: 1,
-			};
-		else {
-			this.symbolTable[node.symbol] = {
-				value: null,
-				type: "ptr",
-				size: node.value.elements.length,
-			};
+		if (node.dimensions === 0) {
+			symbolTable.define(node.symbol, node.dataType);
+			symbolTable.assign(node.symbol, node.value);
+		} else {
+			symbolTable.define(node.symbol, "ptr");
 		}
+
+		this.instructions.push("INCR HP");
 		this.load("BX", "$" + node.symbol);
 		this.instructions.push(
 			node.dimensions > 0 ? "STRE @BX, DX" : "STRE @BX, AX",
@@ -506,17 +552,17 @@ export class Xenon124Compiler {
 		);
 		if (res.error) return res;
 
-		if (this.symbolTable[node.symbol].type !== node.value.type)
+		if (symbolTable.symbols[node.symbol].type !== node.value.type)
 			return res.fail(
 				new Exception(
 					node.value.startPos,
 					node.value.endPos,
 					"Type Error",
-					`Cannot assign '${node.value.type}' to '${this.symbolTable[node.symbol].type}'.`,
+					`Cannot assign '${node.value.type}' to '${symbolTable.symbols[node.symbol].type}'.`,
 				),
 			);
 
-		this.symbolTable[node.symbol].value = node.value;
+		symbolTable.assign(node.symbol, node.value);
 		this.load("BX", "$" + node.symbol);
 
 		if (node.op !== "=") {
@@ -542,6 +588,9 @@ export class Xenon124Compiler {
 		res.register(this.visit(node.startExpr, symbolTable));
 		if (res.error) return res;
 
+		const varName = node.startExpr?.symbol;
+		symbolTable.invalidate(varName);
+
 		const startLabel = this.labelCount++;
 		const endLabel = this.labelCount++;
 
@@ -551,17 +600,24 @@ export class Xenon124Compiler {
 		this.resetRegisters();
 		res.register(this.visit(node.endExpr, symbolTable));
 		if (res.error) return res;
-		this.instructions.push(
-			`JUMP ${endMap[node.endExpr.op.value]}, .F${endLabel}`,
-		);
+
+		if (this.instructions.at(-1).startsWith("BOOL "))
+			this.instructions.pop();
+
+		this.instructions.push(`LDIR CX, .F${endLabel}`);
+		this.instructions.push(`JUMP CX, ${endMap[node.endExpr.op.value]}`);
 
 		res.register(this.visit(node.body, symbolTable));
 		if (res.error) return res;
 
 		res.register(this.visit(node.stepExpr, symbolTable));
 		if (res.error) return res;
-		this.instructions.push(`JUMP AL, .F${startLabel}`);
+		this.instructions.push(`LDIR CX, .F${startLabel}`);
+		this.instructions.push(`JUMP CX, AL`);
 		this.instructions.push(`F${endLabel}:`);
+
+		const modifiedVars = this.getModifiedVariables(node.body);
+		modifiedVars.forEach((varName) => symbolTable.invalidate(varName));
 
 		this.canFoldVars = true;
 		this.resetRegisters();
@@ -590,14 +646,22 @@ export class Xenon124Compiler {
 		res.register(this.visit(node.condition, symbolTable));
 		if (res.error) return res;
 
+		if (this.instructions.at(-1).startsWith("BOOL "))
+			this.instructions.pop();
+
+		this.instructions.push(`LDIR CX, .W${endLabel}`);
 		this.instructions.push(
-			`JUMP ${endMap[node.condition.op.value]}, .W${endLabel}`,
+			`JUMP CX, ${endMap[node.condition.op.value] ?? "EQ"}`,
 		);
 
 		res.register(this.visit(node.body, symbolTable));
 		if (res.error) return res;
-		this.instructions.push(`JUMP AL, .W${startLabel}`);
+		this.instructions.push(`LDIR CX, .W${startLabel}`);
+		this.instructions.push(`JUMP CX, AL`);
 		this.instructions.push(`W${endLabel}:`);
+
+		const modifiedVars = this.getModifiedVariables(node.body);
+		modifiedVars.forEach((varName) => symbolTable.invalidate(varName));
 
 		this.canFoldVars = true;
 		this.resetRegisters();
@@ -622,6 +686,9 @@ export class Xenon124Compiler {
 			const _case = node.cases[i];
 			_case.condition = this.optimize(_case.condition);
 
+			const modified = this.getModifiedVariables(_case.body);
+			modified.forEach((varName) => symbolTable.invalidate(varName));
+
 			if (_case.condition.constructor.name.includes("Literal")) {
 				if (_case.condition.value === 0) continue;
 
@@ -634,15 +701,22 @@ export class Xenon124Compiler {
 
 			res.register(this.visit(_case.condition, symbolTable));
 			if (res.error) return res;
-			if (_case.condition instanceof Nodes.BinaryOpNode)
+
+			if (this.instructions.at(-1).startsWith("BOOL ")) {
+				this.instructions.pop();
+				this.instructions.push(`LDIR CX, .I${nextIfLabel}`);
 				this.instructions.push(
-					`JUMP ${endMap[_case.condition.op.value]}, .I${nextIfLabel}`,
+					`JUMP CX, ${endMap[_case.condition.op.value]}`,
 				);
-			else this.instructions.push(`JUMP EQ, .I${nextIfLabel}`);
+			} else {
+				this.instructions.push(`LDIR CX, .I${nextIfLabel}`);
+				this.instructions.push(`JUMP CX, EQ`);
+			}
 
 			res.register(this.visit(_case.body, symbolTable));
 			if (res.error) return res;
-			this.instructions.push(`JUMP AL, .I${endIfLabel}`);
+			this.instructions.push(`LDIR CX, .I${nextIfLabel}`);
+			this.instructions.push(`JUMP CX, AL`);
 			this.instructions.push(`I${nextIfLabel}:`);
 		}
 
@@ -651,6 +725,9 @@ export class Xenon124Compiler {
 		if (node.elseCase) {
 			res.register(this.visit(node.elseCase, symbolTable));
 			if (res.error) return res;
+
+			const modifiedElse = this.getModifiedVariables(node.elseCase);
+			modifiedElse.forEach((varName) => symbolTable.invalidate(varName));
 		}
 
 		return res.success(null);
@@ -714,7 +791,7 @@ export class Xenon124Compiler {
 		const res = new Result();
 		const subLabel = `sub_${node.name}`;
 
-		if (this.symbolTable[node.symbol])
+		if (symbolTable.symbols[node.symbol])
 			return res.fail(
 				new Exception(
 					node.startPos,
@@ -739,6 +816,8 @@ export class Xenon124Compiler {
 			);
 		});
 
+		subSymbolTable.subType = node.returnType;
+
 		this.instructions.push(`${subLabel}:`);
 		this.resetRegisters();
 		this.canFoldVars = false;
@@ -750,10 +829,88 @@ export class Xenon124Compiler {
 
 		this.instructions.push("MOVE SP, BP");
 		this.instructions.push("POP BP");
+		this.instructions.push("LDIR AX, #0000");
 		this.instructions.push("RETN AL");
 
 		this.resetRegisters();
 		this.canFoldVars = true;
+		return res.success(null);
+	}
+
+	visitCallNode(node, symbolTable) {
+		const res = new Result();
+
+		node.args.toReversed().forEach((arg) => {
+			res.register(this.visit(arg, symbolTable));
+			if (res.error) return res;
+
+			this.instructions.push("PUSH AX");
+		});
+
+		console.log(node);
+
+		this.instructions.push(`LDIR CX, .sub_${node.symbol}`);
+		this.instructions.push("CALL CX, AL");
+
+		return res.success(null);
+	}
+
+	visitReturnNode(node, symbolTable) {
+		const res = new Result();
+
+		const writeReturn = () => {
+			this.instructions.push("MOVE SP, BP");
+			this.instructions.push("POP BP");
+			this.instructions.push("RETN AL");
+		};
+
+		if (!symbolTable.subType)
+			return res.fail(
+				new Exception(
+					node.startPos,
+					node.endPos,
+					"ReturnError",
+					"Cannot return outside of a subroutine.",
+				),
+			);
+
+		if (symbolTable.subType === "void") {
+			if (node.value !== null)
+				return res.fail(
+					new Exception(
+						node.startPos,
+						node.endPos,
+						"ReturnError",
+						"Cannot return a value in a 'void' subroutine.",
+					),
+				);
+			writeReturn();
+			return res.success(null);
+		}
+
+		if (node.value === null)
+			return res.fail(
+				new Exception(
+					node.startPos,
+					node.endPos,
+					"ReturnError",
+					`Cannot return void in a '${symbolTable.subType}' subroutine.`,
+				),
+			);
+
+		res.register(this.visit(node.value, symbolTable));
+		if (res.error) return res;
+
+		if (this.isCurrentlyFMod === (symbolTable.subType === "int"))
+			return res.fail(
+				new Exception(
+					node.startPos,
+					node.endPos,
+					"ReturnError",
+					`Cannot return a ${this.isCurrentlyFMod ? "float" : "int"} in a '${symbolTable.subType}' subroutine.`,
+				),
+			);
+		writeReturn();
 		return res.success(null);
 	}
 }

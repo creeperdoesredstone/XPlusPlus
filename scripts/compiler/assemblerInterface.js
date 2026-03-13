@@ -1,8 +1,5 @@
-import { lex } from "./lexer.js";
-import { parse, optimizeAST } from "./parser.js";
-import { Xenon124Compiler } from "./compiler.js";
+import { XenonAssembler } from "./assembler.js";
 import { app, db } from "../sdk.js";
-import { saveContent, showSaveStatus } from "../fnInput.js";
 
 import { loadFiles } from "../fnInput.js";
 import {
@@ -16,7 +13,7 @@ const auth = getAuth(app);
 async function exportBuildToFirestore(instructions) {
 	const urlParams = new URLSearchParams(window.location.search);
 	const pname = urlParams.get("project");
-	const fn = urlParams.get("file").replace(".xs", "");
+	const fn = urlParams.get("file").replace(".xasm", "");
 
 	if (!pname || !auth.currentUser) {
 		printToTerminal("Export failed: Project context missing.", "error");
@@ -26,7 +23,7 @@ async function exportBuildToFirestore(instructions) {
 	const userRef = doc(db, "users", auth.currentUser.uid);
 	const sanitizedProjectName = pname.replace(/\./g, "_");
 
-	const outputFileName = `${fn}_xasm`;
+	const outputFileName = `${fn}_bin`;
 
 	try {
 		printToTerminal("Saving build...", "system");
@@ -38,7 +35,7 @@ async function exportBuildToFirestore(instructions) {
 
 		printToTerminal(
 			`Build exported: ${outputFileName.replace("_", ".")}`,
-			"asm",
+			"bin",
 		);
 		loadFiles(auth.currentUser);
 	} catch (error) {
@@ -47,7 +44,7 @@ async function exportBuildToFirestore(instructions) {
 	}
 }
 
-const compileBtn = document.querySelector("#btn-compile");
+const assembleBtn = document.querySelector("#btn-assemble");
 const codeSpace = document.querySelector("#codespace");
 
 const terminalOutput = document.getElementById("terminal-output");
@@ -61,12 +58,6 @@ function printToTerminal(message, type = "default") {
 
 	localStorage.setItem("terminal-msg", terminalOutput.innerHTML);
 }
-
-document.getElementById("btn-clear-terminal").addEventListener("click", () => {
-	terminalOutput.innerHTML =
-		"<span class='terminal-line'>Terminal cleared.</span>";
-	localStorage.setItem("terminal-msg", terminalOutput.innerHTML);
-});
 
 function logCompilerAction(type, subsystem, message) {
 	const types = {
@@ -85,35 +76,20 @@ function logCompilerAction(type, subsystem, message) {
 	localStorage.setItem("terminal-msg", terminalOutput.innerHTML);
 }
 
-const run = () => {
+const assemble = () => {
 	const ftxt = codeSpace.innerText;
-	showSaveStatus("Saving...");
-	saveContent(ftxt);
 
 	const urlParams = new URLSearchParams(window.location.search);
 	const pname = urlParams.get("project");
 	const fn = urlParams.get("file");
 
-	const lexResult = lex(`${pname}/${fn}`, ftxt);
-	if (lexResult.error) return lexResult;
-
-	const parseResult = parse(lexResult.value);
-	if (parseResult.error) return parseResult;
-
-	console.log(parseResult.value);
-
-	const { ast, compilerActions } = optimizeAST(parseResult.value);
-	compilerActions.forEach((action) => {
-		logCompilerAction(action.type, action.subsystem, action.message);
-	});
-
-	const compileResult = new Xenon124Compiler().compile(ast);
+	const compileResult = new XenonAssembler().assemble(ftxt, `${pname}/${fn}`);
 	return compileResult;
 };
 
-compileBtn.addEventListener("click", () => {
-	printToTerminal("Starting compilation...", "system");
-	const result = run();
+assembleBtn.addEventListener("click", () => {
+	printToTerminal("Starting assembly...", "system");
+	const result = assemble();
 
 	if (result.error) {
 		printToTerminal(
@@ -122,7 +98,7 @@ compileBtn.addEventListener("click", () => {
 			"error",
 		);
 	} else {
-		printToTerminal("Compilation successful!", "success");
+		printToTerminal("Assembly successful!", "success");
 		exportBuildToFirestore(result.value);
 	}
 });

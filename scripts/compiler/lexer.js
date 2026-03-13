@@ -32,8 +32,12 @@ export function lex(fn, ftxt) {
 			case currentChar === "\u200B":
 				pos.col--;
 			case currentChar === " ":
+				advance();
+				break;
+			
 			case currentChar === "\t":
 				advance();
+				pos.col += 3;
 				break;
 			
 			case currentChar === "\n":
