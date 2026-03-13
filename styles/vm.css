@@ -1,0 +1,49 @@
+.register-container {
+	display: flex;
+	flex-direction: row;
+	justify-content: space-between;
+	gap: 20px;
+	margin-top: 10px;
+}
+
+.register {
+	background-color: var(--accent-register);
+	padding: 4px;
+	padding-bottom: 8px;
+	border-radius: 6px;
+	flex-grow: 1;
+}
+
+.reg-name {
+	color: var(--accent-bg);
+	background-color: none;
+	padding: 4px;
+	text-align: center;
+
+	font-weight: 900;
+	font-size: 1.25rem;
+	box-shadow: 0 2px 0 #0000005d;
+
+	text-shadow: 0 0 6px var(--accent-regname);
+}
+
+.register.secondary {
+	background-color: var(--accent-register-secondary);
+}
+
+.reg-value {
+	margin-top: 6px;
+	text-align: center;
+	text-shadow: 0 0 4px var(--accent-bg);
+	background-color: var(--accent-regvalue);
+	border-radius: 4px;
+	box-shadow: 0 4px 0 #00000028;
+}
+
+.register.secondary .reg-name {
+	text-shadow: 0 0 6px var(--accent-regname-secondary);
+}
+
+.register.secondary .reg-value {
+	background-color: var(--accent-regvalue-secondary);
+}

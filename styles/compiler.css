@@ -33,9 +33,16 @@ main {
 	color: var(--accent-subheading);
 }
 
+.icon-bin {
+	color: var(--accent-text) !important;
+}
+
 #file-nav button,
 #btn-compile,
-#btn-vm {
+#btn-assemble,
+#btn-vm,
+#btn-run,
+#btn-compiler {
 	background-color: var(--accent-navbar2);
 	color: var(--accent-text);
 	border: 1px solid var(--card-border);
@@ -51,13 +58,16 @@ main {
 	font-family: var(--font-main);
 }
 
-#btn-compile {
+#btn-compile,
+#btn-assemble,
+#btn-run {
 	color: white;
 	background-color: var(--accent-subheading);
 	width: 150px;
 }
 
-#btn-vm {
+#btn-vm,
+#btn-compiler {
 	color: var(--accent-text);
 	background-color: var(--accent-navbar);
 	width: 150px;
@@ -69,16 +79,20 @@ main {
 	transform: translateX(5px);
 }
 
-#btn-compile:hover {
+#btn-compile:hover,
+#btn-assemble:hover,
+#btn-run:hover {
 	color: var(--accent-bg);
 	background-color: var(--accent-heading);
 }
 
-#btn-compile:disabled {
+#btn-compile:disabled,
+#btn-assemble:disabled {
 	display: none;
 }
 
-#btn-vm:hover {
+#btn-vm:hover,
+#btn-compiler:hover {
 	background-color: var(--accent-navbar2);
 }
 
@@ -119,16 +133,16 @@ main {
 }
 
 #codespace {
-    white-space: pre-wrap;
-    word-break: break-all;
+	white-space: pre-wrap;
+	word-break: break-all;
 
 	-webkit-user-modify: read-write-plaintext-only;
 }
 
 #codespace br {
-    display: block;
-    content: "";
-    margin-top: 0;
+	display: block;
+	content: "";
+	margin-top: 0;
 }
 
 #codespace::-webkit-scrollbar {
@@ -231,6 +245,7 @@ main {
 	color: #d1d1d1;
 	line-height: 1.4;
 	white-space: pre;
+	tab-size: 4;
 }
 
 #terminal-output::-webkit-scrollbar {

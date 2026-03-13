@@ -73,7 +73,6 @@ body.light {
 .token.deleted,
 .token.namespace,
 .token.tag {
-	font-style: italic;
 	color: var(--accent-namespace);
 }
 .token.function-name {
