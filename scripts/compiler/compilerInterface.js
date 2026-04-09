@@ -13,6 +13,11 @@ import { getAuth } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-auth
 
 const auth = getAuth(app);
 
+const extensions = {
+	"xenon-124-vm": "xsa",
+	"beta-vm": "asm",
+};
+
 async function exportBuildToFirestore(instructions) {
 	const urlParams = new URLSearchParams(window.location.search);
 	const pname = urlParams.get("project");
@@ -26,7 +31,7 @@ async function exportBuildToFirestore(instructions) {
 	const userRef = doc(db, "users", auth.currentUser.uid);
 	const sanitizedProjectName = pname.replace(/\./g, "_");
 
-	const outputFileName = `${fn}_xasm`;
+	const outputFileName = `${fn}_${extensions[vmSelect.value]}`;
 
 	try {
 		printToTerminal("Saving build...", "system");
@@ -49,6 +54,7 @@ async function exportBuildToFirestore(instructions) {
 
 const compileBtn = document.querySelector("#btn-compile");
 const codeSpace = document.querySelector("#codespace");
+const vmSelect = document.querySelector("#vm-select");
 
 const terminalOutput = document.getElementById("terminal-output");
 
@@ -100,14 +106,31 @@ const run = () => {
 	const parseResult = parse(lexResult.value);
 	if (parseResult.error) return parseResult;
 
-	console.log(parseResult.value);
-
 	const { ast, compilerActions } = optimizeAST(parseResult.value);
 	compilerActions.forEach((action) => {
 		logCompilerAction(action.type, action.subsystem, action.message);
 	});
 
-	const compileResult = new Xenon124Compiler().compile(ast);
+	const selectedIndex = vmSelect.selectedIndex;
+	const selectedText = vmSelect.options[selectedIndex].text;
+
+	let compiler;
+
+	switch (vmSelect.value) {
+		case "xenon-124-vm":
+			compiler = new Xenon124Compiler();
+			break;
+		default:
+			printToTerminal(
+				"Unsupported Virtual Machine: " + selectedText,
+				"error",
+			);
+			throw new Error("Unsupported Virtual Machine: " + selectedText, {
+				cause: "VM not implemented",
+			});
+	}
+
+	const compileResult = compiler.compile(ast);
 	return compileResult;
 };
 

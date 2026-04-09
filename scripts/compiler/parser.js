@@ -15,6 +15,15 @@ export class Statements {
 	}
 }
 
+export class BoolLiteral {
+	constructor(startPos, endPos, value) {
+		this.startPos = startPos;
+		this.endPos = endPos;
+		this.value = value;
+		this.type = "bool";
+	}
+}
+
 export class IntLiteral {
 	constructor(startPos, endPos, value) {
 		this.startPos = startPos;
@@ -94,6 +103,8 @@ export class UnaryOpNode {
 		this.endPos = endPos;
 		this.op = op;
 		this.value = value;
+
+		this.type = value.type;
 	}
 }
 
@@ -185,12 +196,15 @@ export class ArraySet {
 }
 
 export class CallNode {
-	constructor(startPos, endPos, caller, args) {
+	constructor(startPos, endPos, caller, args, symbolTable) {
 		this.startPos = startPos;
 		this.endPos = endPos;
 		this.caller = caller;
 		this.args = args;
 		this.symbol = caller.value ?? caller.symbol;
+
+		const symbolInfo = symbolTable.getSymbol(this.symbol);
+		this.type = symbolInfo ? symbolInfo.dataType : "any";
 	}
 }
 
@@ -316,6 +330,8 @@ export function parse(tokens) {
 					return subroutineDef();
 				case "return":
 					return returnStatement();
+				case "switch":
+					return switchStatement();
 			}
 		}
 		return expr();
@@ -501,8 +517,6 @@ export function parse(tokens) {
 
 		const body = res.register(statements(TT.RBRACE));
 		if (res.error) return res;
-
-		console.log(body);
 
 		if (currentTok.type !== TT.RBRACE)
 			return res.fail(
@@ -718,6 +732,23 @@ export function parse(tokens) {
 		return res.success(new IfStatement(startPos, endPos, cases, elseCase));
 	}
 
+	function switchStatement() {
+		const res = new Result();
+		const startPos = currentTok.startPos.copy();
+		const cases = [];
+		advance();
+
+		if (currentTok.type !== TT.LPAREN)
+			return res.fail(
+				new InvalidSyntax(
+					currentTok.startPos,
+					currentTok.endPos,
+					"Expected '(' after switch statement.",
+				),
+			);
+		advance();
+	}
+
 	function subroutineDef() {
 		const res = new Result();
 		const startPos = currentTok.startPos.copy();
@@ -815,7 +846,7 @@ export function parse(tokens) {
 			);
 		advance();
 
-		symbolTable.define(name, "ptr", 1);
+		symbolTable.define(name, returnType, 1);
 
 		const parentSymTable = symbolTable;
 		symbolTable = new SymbolTable(parentSymTable);
@@ -1053,6 +1084,7 @@ export function parse(tokens) {
 					currentTok.endPos,
 					leftVal,
 					args,
+					symbolTable,
 				);
 			}
 			advance();
@@ -1101,6 +1133,10 @@ export function parse(tokens) {
 		if (tok.type === TT.FLOAT)
 			return res.success(
 				new FloatLiteral(tok.startPos, tok.endPos, Number(tok.value)),
+			);
+		if (tok.type === TT.BOOL)
+			return res.success(
+				new BoolLiteral(tok.startPos, tok.endPos, tok.value),
 			);
 		if (tok.type === TT.IDENT) {
 			if (!symbolTable.getSymbol(tok.value))
@@ -1247,9 +1283,21 @@ export class ASTTransformer {
 		}
 		if (node instanceof Statements) {
 			let newBody = [];
+			let unreachableDetected = false;
+
 			for (let i = 0; i < node.body.length; i++) {
 				let current = node.body[i];
 				let next = node.body[i + 1];
+
+				// Check if unreachable code is reached
+				if (unreachableDetected) {
+					this.compilerActions.push({
+						type: "warn",
+						subsystem: "unreachable-code",
+						message: `pruned unreachable statement at line ${current.startPos.line}`,
+					});
+					continue;
+				}
 
 				// Check if current is a VarDeclaration or Assignment to 'x'
 				// and the next is an Assignment to the same 'x'
@@ -1278,7 +1326,11 @@ export class ASTTransformer {
 				}
 
 				const transformed = this.transform(current);
-				if (transformed) newBody.push(transformed);
+				if (transformed) {
+					newBody.push(transformed);
+					if (transformed instanceof ReturnNode)
+						unreachableDetected = true;
+				}
 			}
 			node.body = newBody;
 			return node;
@@ -1313,6 +1365,38 @@ export class ASTTransformer {
 		if (node instanceof WhileLoop) {
 			node.condition = this.transform(node.condition);
 			node.body = this.transform(node.body);
+
+			return node;
+		}
+		if (node instanceof IfStatement) {
+			node.cases = node.cases.map((c) => ({
+				condition: this.transform(c.condition),
+				body: this.transform(c.body),
+			}));
+			if (node.elseCase) node.elseCase = this.transform(node.elseCase);
+			return node;
+		}
+		if (node instanceof ArrayLiteral) {
+			node.elements = node.elements.map((e) => this.transform(e));
+			return node;
+		}
+
+		if (node instanceof ArrayAccess) {
+			node.array = this.transform(node.array);
+			node.index = this.transform(node.index);
+			return node;
+		}
+
+		if (node instanceof ArraySet) {
+			node.accessor = this.transform(node.accessor);
+			node.value = this.transform(node.value);
+			return node;
+		}
+		if (node instanceof SubroutineDef) {
+			const parentTable = this.symbolTable;
+			this.symbolTable = node.symbolTable;
+			node.body = this.transform(node.body);
+			this.symbolTable = parentTable;
 
 			return node;
 		}

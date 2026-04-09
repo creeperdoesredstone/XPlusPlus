@@ -34,12 +34,12 @@ export function lex(fn, ftxt) {
 			case currentChar === " ":
 				advance();
 				break;
-			
+
 			case currentChar === "\t":
 				advance();
 				pos.col += 3;
 				break;
-			
+
 			case currentChar === "\n":
 				tokens.push(new Token(startPos, startPos, TT.NEWL));
 				advance();
@@ -49,17 +49,17 @@ export function lex(fn, ftxt) {
 				tokens.push(new Token(startPos, startPos, TT.SEMI));
 				advance();
 				break;
-			
+
 			case currentChar === ":":
 				tokens.push(new Token(startPos, startPos, TT.COL));
 				advance();
 				break;
-			
+
 			case currentChar === ",":
 				tokens.push(new Token(startPos, startPos, TT.COMMA));
 				advance();
 				break;
-			
+
 			case currentChar === ".":
 				tokens.push(new Token(startPos, startPos, TT.DOT));
 				advance();
@@ -74,7 +74,7 @@ export function lex(fn, ftxt) {
 				tokens.push(new Token(startPos, startPos, TT.RPAREN));
 				advance();
 				break;
-			
+
 			case currentChar === "{":
 				tokens.push(new Token(startPos, startPos, TT.LBRACE));
 				advance();
@@ -84,7 +84,7 @@ export function lex(fn, ftxt) {
 				tokens.push(new Token(startPos, startPos, TT.RBRACE));
 				advance();
 				break;
-			
+
 			case currentChar === "[":
 				tokens.push(new Token(startPos, startPos, TT.LSQUARE));
 				advance();
@@ -119,7 +119,7 @@ export function lex(fn, ftxt) {
 					tokens.push(new Token(startPos, startPos, TT.OP, "-"));
 				}
 				break;
-			case currentChar === "%": 
+			case currentChar === "%":
 				advance();
 				if (currentChar === "=") {
 					tokens.push(new Token(startPos, pos.copy(), TT.OP, "%="));
@@ -128,7 +128,7 @@ export function lex(fn, ftxt) {
 					tokens.push(new Token(startPos, startPos, TT.OP, "%"));
 				}
 				break;
-			
+
 			case currentChar === "=":
 				advance();
 				if (currentChar === "=") {
@@ -225,14 +225,14 @@ export function lex(fn, ftxt) {
 					advance();
 				}
 
-				tokens.push(
-					new Token(
-						startPos,
-						pos.copy(),
-						keywords.includes(resStr) ? TT.KEYW : TT.IDENT,
-						resStr,
-					),
-				);
+				let type = TT.IDENT;
+				if (keywords.includes(resStr)) type = TT.KEYW;
+				if (resStr === "true" || resStr === "false") {
+					type = TT.BOOL;
+					resStr = resStr === "true";
+				}
+
+				tokens.push(new Token(startPos, pos.copy(), type, resStr));
 				break;
 
 			default:

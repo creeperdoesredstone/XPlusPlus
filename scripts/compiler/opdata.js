@@ -278,13 +278,20 @@ export const opcodes = {
 		bits: [4, 0],
 		m1: 6,
 	},
+	CLRI: {
+		padded: false,
+		opcode: 4,
+		args: [],
+		m1: 7,
+		m2: 0,
+	},
 	DISP: {
 		padded: false,
 		opcode: 4,
 		args: ["disp2"],
 		bits: [0],
 		m1: 7,
-		m2: 0,
+		m2: 1,
 	},
 	PERI: {
 		padded: false,
@@ -292,7 +299,7 @@ export const opcodes = {
 		args: ["peri2", "reg/ind"],
 		bits: [4, 0],
 		m1: 7,
-		m2: 1,
+		m2: 2,
 	},
 
 	// OPCODE 5: Math Functions

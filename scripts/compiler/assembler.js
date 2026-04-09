@@ -10,7 +10,7 @@ export class XenonAssembler {
 			BX: 1,
 			CX: 2,
 			DX: 3,
-			EX: 4,
+			PC: 4,
 			HP: 5,
 			SP: 6,
 			BP: 7,

@@ -80,7 +80,7 @@ export class Xenon124Compiler {
 			BX: null,
 			CX: null,
 			DX: null,
-			EX: null,
+			PC: null,
 			HP: null,
 			SP: null,
 			BP: null,
@@ -104,13 +104,15 @@ export class Xenon124Compiler {
 			if (res.error) return res;
 		});
 
-		return res.success(this.instructions);
+		return res.success(this.optimizeAsm(this.instructions));
 	}
 
-	optimize(node, symbolTable) {
+	optimizeNode(node, symbolTable) {
 		if (node instanceof Nodes.BinaryOpNode) {
-			node.left = this.optimize(node.left, symbolTable);
-			node.right = this.optimize(node.right, symbolTable);
+			node.left = this.optimizeNode(node.left, symbolTable);
+			node.right = this.optimizeNode(node.right, symbolTable);
+
+			if (!this.checkLeftRightTypes(node.left, node.right)) return node;
 
 			if (
 				node.left.constructor.name.includes("Literal") &&
@@ -154,7 +156,7 @@ export class Xenon124Compiler {
 		}
 
 		if (node instanceof Nodes.IncrementNode) {
-			node.value = this.optimize(node.value, symbolTable);
+			node.value = this.optimizeNode(node.value, symbolTable);
 
 			if (node.value.constructor.name.includes("Literal")) {
 				node.value.value++;
@@ -163,7 +165,7 @@ export class Xenon124Compiler {
 		}
 
 		if (node instanceof Nodes.DecrementNode) {
-			node.value = this.optimize(node.value, symbolTable);
+			node.value = this.optimizeNode(node.value, symbolTable);
 
 			if (node.value.constructor.name.includes("Literal")) {
 				node.value.value--;
@@ -186,6 +188,77 @@ export class Xenon124Compiler {
 			}
 		}
 		return node;
+	}
+
+	optimizeAsm(instructions) {
+		let optimizedInstructions = [...instructions];
+		let changesMade = false;
+
+		function getInstructionData(line) {
+			if (!line || line.endsWith(":") || !line.includes(" ")) {
+				return { instruction: line, data: [] };
+			}
+			const parts = line.split(" ");
+			const instruction = parts[0];
+			const data = parts.slice(1).join(" ").split(", ");
+			return { instruction, data };
+		}
+
+		do {
+			changesMade = false;
+			for (let i = 0; i < optimizedInstructions.length - 1; i++) {
+				const current = optimizedInstructions[i];
+				const next = optimizedInstructions[i + 1];
+
+				const c = getInstructionData(current);
+				const n = getInstructionData(next);
+
+				// redundant LOAD/STRE
+				if (c.instruction === "LOAD" && n.instruction === "STRE") {
+					if (c.data[0] === n.data[1] && c.data[1] === n.data[0]) {
+						optimizedInstructions.splice(i + 1, 1);
+						changesMade = true;
+						break;
+					}
+				}
+
+				// redundant MOVE AX, AX
+				if (c.instruction === "MOVE" && c.data[0] === c.data[1]) {
+					optimizedInstructions.splice(i, 1);
+					changesMade = true;
+					break;
+				}
+
+				// dead MOVE: MOVE AX, BX followed by MOVE BX, AX
+				if (c.instruction === "MOVE" && n.instruction === "MOVE") {
+					if (c.data[0] === n.data[1] && c.data[1] === n.data[0]) {
+						optimizedInstructions.splice(i + 1, 1);
+						changesMade = true;
+						break;
+					}
+				}
+
+				// redundant STRE/LOAD
+				if (c.instruction === "STRE" && n.instruction === "LOAD") {
+					if (c.data[0] === n.data[1] && c.data[1] === n.data[0]) {
+						optimizedInstructions.splice(i + 1, 1);
+						changesMade = true;
+						break;
+					}
+				}
+
+				// double register clear: LDIR AX, #0000 followed by LDIR AX, #0000
+				if (c.instruction === "LDIR" && n.instruction === "LDIR") {
+					if (c.data[0] === n.data[0] && c.data[1] === n.data[1]) {
+						optimizedInstructions.splice(i + 1, 1);
+						changesMade = true;
+						break;
+					}
+				}
+			}
+		} while (changesMade);
+
+		return optimizedInstructions;
 	}
 
 	evaluate(left, op, right) {
@@ -234,6 +307,7 @@ export class Xenon124Compiler {
 		const modified = new Set();
 
 		const walk = (n) => {
+			console.log(n);
 			if (!n) return;
 
 			if (n instanceof Nodes.Assignment) {
@@ -242,7 +316,8 @@ export class Xenon124Compiler {
 
 			if (
 				(n instanceof Nodes.IncrementNode ||
-					n instanceof Nodes.DecrementNode) &&
+					n instanceof Nodes.DecrementNode ||
+					n instanceof Nodes.UnaryOpNode) &&
 				n.value instanceof Nodes.Identifier
 			) {
 				modified.add(n.value.value);
@@ -270,10 +345,17 @@ export class Xenon124Compiler {
 		return Array.from(modified);
 	}
 
+	checkLeftRightTypes(leftNode, rightNode) {
+		if (leftNode.type === "float" && rightNode.type === "int") return true;
+		if (leftNode.type === "int" && rightNode.type === "float") return true;
+
+		return leftNode.type === rightNode.type;
+	}
+
 	visit(node, symbolTable) {
 		if (node === null) return new Result().success(null);
 
-		const optimizedNode = this.optimize(node, symbolTable);
+		const optimizedNode = this.optimizeNode(node, symbolTable);
 		const nodeType = optimizedNode.constructor.name;
 		const method = this["visit" + nodeType] ?? this.undefinedVisit;
 		return method.call(this, optimizedNode, symbolTable);
@@ -347,6 +429,16 @@ export class Xenon124Compiler {
 		return new Result().success(node);
 	}
 
+	visitBoolLiteral(node, symbolTable) {
+		if (this.isCurrentlyFMod) this.instructions.push("CMOD int");
+		const value = node.value ? "#FFFF" : "#0000";
+		this.load("AX", `${value}`);
+
+		this.isCurrentlyFMod = false;
+
+		return new Result().success(node);
+	}
+
 	visitFloatLiteral(node, symbolTable) {
 		if (!this.isCurrentlyFMod) this.instructions.push("CMOD float");
 		const value = this.toFP16(Number(node.value));
@@ -361,10 +453,10 @@ export class Xenon124Compiler {
 	visitArrayLiteral(node, symbolTable) {
 		const res = new Result();
 		this.load(
-			"EX",
+			"CX",
 			"#" + node.elements.length.toString(16).padStart(4, "0"),
 		);
-		this.instructions.push("STRE @HP, EX");
+		this.instructions.push("STRE @HP, CX");
 		this.instructions.push("MOVE DX, HP");
 		this.instructions.push("INCR HP");
 
@@ -399,6 +491,16 @@ export class Xenon124Compiler {
 
 	visitBinaryOpNode(node, symbolTable) {
 		const res = new Result();
+
+		if (!this.checkLeftRightTypes(node.left, node.right))
+			return res.fail(
+				new Exception(
+					node.left.startPos,
+					node.right.endPos,
+					"Type Error",
+					`Cannot perform operation '${node.op.value}' between '${node.left.type}' and '${node.right.type}'.`,
+				),
+			);
 
 		res.register(this.visit(node.left, symbolTable));
 		if (res.error) return res;
@@ -491,7 +593,7 @@ export class Xenon124Compiler {
 
 		if (node.dimensions > 0) this.instructions.push("MOVE DX, HP");
 
-		this.instructions.push("$x");
+		this.instructions.push("$" + `${node.symbol}`);
 
 		res.register(this.visit(node.value, symbolTable));
 		if (res.error) return res;
@@ -661,6 +763,7 @@ export class Xenon124Compiler {
 		this.instructions.push(`W${endLabel}:`);
 
 		const modifiedVars = this.getModifiedVariables(node.body);
+		console.log(modifiedVars);
 		modifiedVars.forEach((varName) => symbolTable.invalidate(varName));
 
 		this.canFoldVars = true;
@@ -684,7 +787,7 @@ export class Xenon124Compiler {
 
 		for (let i = 0; i < node.cases.length; i++) {
 			const _case = node.cases[i];
-			_case.condition = this.optimize(_case.condition);
+			_case.condition = this.optimizeNode(_case.condition);
 
 			const modified = this.getModifiedVariables(_case.body);
 			modified.forEach((varName) => symbolTable.invalidate(varName));
@@ -791,16 +894,6 @@ export class Xenon124Compiler {
 		const res = new Result();
 		const subLabel = `sub_${node.name}`;
 
-		if (symbolTable.symbols[node.symbol])
-			return res.fail(
-				new Exception(
-					node.startPos,
-					node.endPos,
-					"Symbol Error",
-					`Symbol '${node.symbol}' is already defined.`,
-				),
-			);
-
 		const subSymbolTable = new SymbolTable(symbolTable);
 
 		node.params.forEach((param, index) => {
@@ -817,6 +910,7 @@ export class Xenon124Compiler {
 		});
 
 		subSymbolTable.subType = node.returnType;
+		console.log(node.returnType);
 
 		this.instructions.push(`${subLabel}:`);
 		this.resetRegisters();
@@ -827,10 +921,18 @@ export class Xenon124Compiler {
 		res.register(this.visit(node.body, subSymbolTable));
 		if (res.error) return res;
 
-		this.instructions.push("MOVE SP, BP");
-		this.instructions.push("POP BP");
-		this.instructions.push("LDIR AX, #0000");
-		this.instructions.push("RETN AL");
+		const hasTopLevelReturn = node.body.body.some(
+			(stmt) => stmt instanceof Nodes.ReturnNode,
+		);
+
+		// Only push these instructions if the subroutine hasn't already
+		// returned at the top level of the block.
+		if (!hasTopLevelReturn) {
+			this.instructions.push("MOVE SP, BP");
+			this.instructions.push("POP BP");
+			this.instructions.push("LDIR AX, #0000");
+			this.instructions.push("RETN AL");
+		}
 
 		this.resetRegisters();
 		this.canFoldVars = true;
@@ -901,7 +1003,8 @@ export class Xenon124Compiler {
 		res.register(this.visit(node.value, symbolTable));
 		if (res.error) return res;
 
-		if (this.isCurrentlyFMod === (symbolTable.subType === "int"))
+		if (this.isCurrentlyFMod === (symbolTable.subType !== "float")) {
+			console.log("passed checkpoint");
 			return res.fail(
 				new Exception(
 					node.startPos,
@@ -910,6 +1013,7 @@ export class Xenon124Compiler {
 					`Cannot return a ${this.isCurrentlyFMod ? "float" : "int"} in a '${symbolTable.subType}' subroutine.`,
 				),
 			);
+		}
 		writeReturn();
 		return res.success(null);
 	}

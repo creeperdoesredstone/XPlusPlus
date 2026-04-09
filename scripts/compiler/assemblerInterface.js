@@ -13,7 +13,7 @@ const auth = getAuth(app);
 async function exportBuildToFirestore(instructions) {
 	const urlParams = new URLSearchParams(window.location.search);
 	const pname = urlParams.get("project");
-	const fn = urlParams.get("file").replace(".xasm", "");
+	const fn = urlParams.get("file").replace(".xsa", "");
 
 	if (!pname || !auth.currentUser) {
 		printToTerminal("Export failed: Project context missing.", "error");

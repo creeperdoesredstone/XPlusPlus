@@ -8,6 +8,7 @@ const tokenTypes = [
 	"INT",
 	"FLOAT",
 	"STRING",
+	"BOOL",
 	"IDENT",
 	"KEYW",
 	"OP",
@@ -19,7 +20,7 @@ const tokenTypes = [
 	"RSQUARE",
 ];
 
-export const dataTypes = ["int", "float", "void"];
+export const dataTypes = ["int", "float", "void", "bool"];
 export const keywords = [
 	"var",
 	"for",
@@ -34,8 +35,6 @@ export const keywords = [
 	"case",
 	"return",
 	"class",
-	"break",
-	"continue",
 ];
 keywords.push(...dataTypes);
 
