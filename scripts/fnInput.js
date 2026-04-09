@@ -18,7 +18,7 @@ function debounce(func, timeout = 1000) {
 	};
 }
 
-const saveContent = debounce(async (content) => {
+export const saveContent = debounce(async (content) => {
 	const urlParams = new URLSearchParams(window.location.search);
 	const pname = urlParams.get("project");
 	const fname = urlParams.get("file").replace(/\./g, "_");
@@ -51,7 +51,17 @@ export async function loadFiles(user) {
 	const fn = urlParams.get("file");
 	const terminalOutput = document.getElementById("terminal-output");
 
-	codeSpace.contentEditable = false;
+	console.log(fn);
+
+	const fileExtMap = {
+		xs: "fa-solid fa-file-code icon-default",
+		xasm: "fa-solid fa-file-lines icon-xasm",
+		xsa: "fa-solid fa-file-lines icon-xasm",
+		bin: "fa-solid fa-square-binary icon-bin",
+		easm: "fa-solid fa-gem icon-easm",
+	};
+
+	codeSpace.contentEditable = "false";
 
 	if (data && Object.entries(data.projects[pname].files)) {
 		fileList.innerHTML = "";
@@ -63,10 +73,8 @@ export async function loadFiles(user) {
 			const li = document.createElement("li");
 			li.className = "file-blob";
 			const fn = file[0].replace(/\_/g, ".");
-			const isXasm = fn.toLowerCase().endsWith(".xasm");
-			const iconClass = isXasm
-				? "fa-solid fa-file-lines icon-xasm"
-				: "fa-solid fa-file-code icon-default";
+			const fileType = fn.split(".")[1];
+			const iconClass = fileExtMap[fileType];
 
 			const icon = document.createElement("i");
 			icon.className = iconClass;
@@ -74,7 +82,7 @@ export async function loadFiles(user) {
 
 			const fileLink = document.createElement("a");
 			fileLink.innerText = fn;
-			fileLink.href = `compiler.html?project=${pname}&file=${fn}`;
+			fileLink.href = `${window.location.href.split("&")[0]}&file=${fn}`;
 			li.appendChild(fileLink);
 			fileList.appendChild(li);
 		});
@@ -83,7 +91,7 @@ export async function loadFiles(user) {
 	if (data && fn) {
 		codeSpace.innerText =
 			data.projects[pname].files[fn.replace(/\./g, "_")];
-		codeSpace.contentEditable = true;
+		codeSpace.contentEditable = "true";
 		updateEditorWithPrism();
 	} else {
 		codeSpace.contentEditable = false;
@@ -91,7 +99,7 @@ export async function loadFiles(user) {
 
 	terminalOutput.innerHTML =
 		localStorage.getItem("terminal-msg") ||
-		'<span class="system-msg terminal-line">XenonOS Compiler [Version 1.0.7]</span><span class="system-msg terminal-line">Ready for compilation...</span>';
+		'<span class="system-msg terminal-line">X++ Compiler [Version 1.1.0]</span><span class="system-msg terminal-line">Ready for compilation...</span>';
 }
 
 onAuthStateChanged(auth, loadFiles);
@@ -188,7 +196,7 @@ async function finalizeFileCreation(name, element) {
 	}
 }
 
-function showSaveStatus(status) {
+export function showSaveStatus(status) {
 	const statusEl = document.getElementById("save-status");
 	statusEl.innerText =
 		status === "Saved" ? "✓ All changes saved!" : "● " + status;

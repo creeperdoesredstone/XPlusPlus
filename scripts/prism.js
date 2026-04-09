@@ -476,6 +476,7 @@ Prism.languages.xs = {
 		greedy: !0,
 	},
 	number: /\b0x[a-fA-F\d]+(?:\.[a-fA-F\d]*)?(?:p[+-]?\d+)?\b|\b\d+(?:\.\B|(?:\.\d*)?(?:e[+-]?\d+)?\b)|\B\.\d+(?:e[+-]?\d+)?\b/i,
+	boolean: /\btrue|false\b/,
 	"function-name": {
 		pattern: /(?<=sub\s+)(?!\d)\w+/,
 		lookbehind: !0,
@@ -492,19 +493,22 @@ Prism.languages.xs = {
 	],
 	punctuation: /[\[\](){},;]|\.+|:+/,
 };
-Prism.languages.xasm = {
+Prism.languages.xsa = {
 	comment: /\;(?:\[(=*)\[[\s\S]*?\]\1\]|.*)/m,
 	string: {
 		pattern:
 			/(["'])(?:(?!\1)[^\\\r\n]|\\z(?:\r\n|\s)|\\(?:\r\n|[^z]))*\1|\[(=*)\[[\s\S]*?\]\2\]/,
 		greedy: !0,
 	},
-	number: /(?<=#)[\da-fA-F]+\b/i,
+	number: [/(?<=#)[\da-fA-F]+\b/i, /(?<=\+|\-)\d/i],
 	keyword:
-		/\bNOOP|HALT|CMOD|SRPR|SREV|SVAL|LDIR|LDIF|PSHI|PUSH|POP|STRI|LODI|ADD|SUB|MUL|DIV|MOD|POW|AND|OR|NOT|XOR|SIN|COS|ASIN|ACOS|ATAN|LERP|MOVE|SWAP|STRE|LOAD|COMP|SHFT|XCHG|INCR|DECR|JUMP|CALL|INTR|IRET|RETN|INPT|OUTP|DISP|SQRT|LOG|ABS|FLOR|CEIL|FMAC|SIGN|ROND|BCLR|BLEN|BDEL|BUPD|STSC|PSSC|SPSC|LPSC|SMEM|RAND|CAST|INTM\b/,
+		/\bNOOP|HALT|CMOD|SRPR|SREV|SVAL|LDIR|LDIF|PSHI|PUSH|POP|STRI|LODI|ADD|SUB|MUL|DIV|MOD|POW|AND|OR|NOT|XOR|SIN|COS|ASIN|ACOS|ATAN|LERP|MOVE|SWAP|STRE|LOAD|COMP|SHFT|XCHG|INCR|DECR|JUMP|CALL|INTR|IRET|RETN|INPT|OUTP|CLRI|DISP|SQRT|LOGN|ABSV|FLOR|CEIL|FMAC|SIGN|ROND|BCLR|BLEN|BDEL|BUPD|STSC|PSSC|SPSC|RPSC|SMEM|RAND|CAST|INTM|BOOL|PERI|LDBL|LDBI|WRBL|WRBI\b/,
 	"function-name": /\bAX|BX|CX|DX|EX|HP|SP|BP\b/,
 	operator: [/\+|\-|\@|#/, { pattern: /(^|[^.])\.\.(?!\.)/, lookbehind: !0 }],
 	punctuation: /[\[\](){},;]|\.+|:+/,
-	namespace: /\bNV|LT|EQ|LE|GT|NE|GE|AL\b/,
+	namespace: /\bNV|LT|EQ|LE|GT|NE|GE|AL|CR|CG|CL|CE|CGE|CLE|CNE|CAL|CNV\b/,
 	symbol: /\$.+/,
+};
+Prism.languages.bin = {
+	number: /[\d]+\b/i,
 };
